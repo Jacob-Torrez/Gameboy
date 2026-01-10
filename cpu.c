@@ -34,10 +34,9 @@ uint8_t LD_R16_N16(CPU* cpu, reg16_t dst){
     uint8_t cycles = 12;
     
     if (dst == REG_SP){
-        uint8_t* dst_ptr = &cpu->SP;
+        uint16_t* dst_ptr = &cpu->SP;
 
-        *dst_ptr = read_byte(cpu->mmu, cpu->PC++);
-        *dst_ptr |= read_byte(cpu->mmu, cpu->PC++) << 8;
+        *dst_ptr = ((uint16_t)read_byte(cpu->mmu, cpu->PC++) | (uint16_t)(read_byte(cpu->mmu, cpu->PC++) << 8));
 
     } else {
         uint8_t* dst_ptr1;
@@ -65,14 +64,237 @@ uint8_t LD_R8_R8(CPU* cpu, reg8_t dst, reg8_t src){
 
     return cycles;
 }
-uint8_t LD_R8_N8(CPU* cpu, reg8_t dst);
-uint8_t INC_R8(CPU* cpu, reg8_t dst);
-uint8_t INC_R16(CPU* cpu, reg16_t dst);
-uint8_t DEC_R16(CPU* cpu, reg16_t dst);
-uint8_t DEC_R8(CPU* cpu, reg8_t dst);
-uint8_t ADD_R16_R16(CPU* cpu, reg16_t dst, reg16_t src);
-uint8_t ADD_R8_R8(CPU* cpu, reg8_t dst, reg8_t src);
-uint8_t SUB_R8(CPU* cpu, reg8_t src);
+uint8_t LD_R8_N8(CPU* cpu, reg8_t dst){
+    uint8_t cycles = 8;
+
+    uint8_t* dst_ptr = get_r8_adr(cpu, dst);
+
+    *dst_ptr = read_byte(cpu->mmu, cpu->PC++);
+
+    return cycles;
+}
+uint8_t INC_R8(CPU* cpu, reg8_t dst){
+    uint8_t cycles = 4;
+
+    uint8_t* dst_ptr = get_r8_adr(cpu, dst);
+
+    uint8_t pre = *dst_ptr;
+    uint8_t post = pre + 1;
+
+    // flags
+    if (post == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    cpu->F &= ~FLAG_N;
+
+    if ((pre & 0x0F) == 0x0F){
+        cpu->F |= FLAG_H;
+    } else {
+        cpu->F &= ~FLAG_H;
+    }
+
+    *dst_ptr = post;
+
+    return cycles;
+}
+uint8_t INC_R16(CPU* cpu, reg16_t dst){
+    uint8_t cycles = 8;
+
+    if (dst == REG_SP){
+        uint16_t* dst_ptr = &cpu->SP;
+
+        *dst_ptr += 1;
+
+    } else {
+        uint8_t* dst_ptr1;
+        uint8_t* dst_ptr2;
+
+        switch (dst){
+            case REG_BC: dst_ptr1 = &cpu->B; dst_ptr2 = &cpu->C; break;
+            case REG_DE: dst_ptr1 = &cpu->D; dst_ptr2 = &cpu->E; break;
+            case REG_HL: dst_ptr1 = &cpu->H; dst_ptr2 = &cpu->L; break; 
+        }
+
+        *dst_ptr2 += 1;
+
+        if (*dst_ptr2 == 0){
+            *dst_ptr1 += 1;
+        }
+    }
+
+    return cycles;
+}
+uint8_t DEC_R16(CPU* cpu, reg16_t dst){
+    uint8_t cycles = 8;
+
+    if (dst == REG_SP){
+        uint16_t* dst_ptr = &cpu->SP;
+
+        *dst_ptr -= 1;
+
+    } else {
+        uint8_t* dst_ptr1;
+        uint8_t* dst_ptr2;
+
+        switch (dst){
+            case REG_BC: dst_ptr1 = &cpu->B; dst_ptr2 = &cpu->C; break;
+            case REG_DE: dst_ptr1 = &cpu->D; dst_ptr2 = &cpu->E; break;
+            case REG_HL: dst_ptr1 = &cpu->H; dst_ptr2 = &cpu->L; break; 
+        }
+
+        *dst_ptr2 -= 1;
+
+        if (*dst_ptr2 == 0xFF){
+            *dst_ptr1 -= 1;
+        }
+    }
+
+    return cycles;
+}
+uint8_t DEC_R8(CPU* cpu, reg8_t dst){
+    uint8_t cycles = 4;
+
+    uint8_t* dst_ptr = get_r8_adr(cpu, dst);
+
+    uint8_t value = *dst_ptr - 1;
+
+    // flags
+    if (value == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    cpu->F |= FLAG_N;
+
+    if ((value & 0x0F) == 0x0F){
+        cpu->F |= FLAG_H;
+    } else {
+        cpu->F &= ~FLAG_H;
+    }
+
+    *dst_ptr = value;
+
+    return cycles;
+}
+uint8_t ADD_HL_R16(CPU* cpu, reg16_t src){
+    uint8_t cycles = 8;
+
+    uint16_t HL = ((uint16_t)cpu->L) | ((uint16_t)(cpu->H << 8));
+    uint16_t R16;
+    uint16_t sum;
+
+    if (src == REG_SP){
+        uint16_t* src_ptr = &cpu->SP;
+        R16 = *src_ptr;
+
+        sum = HL + R16;
+    } else {
+        uint8_t* src_ptr1;
+        uint8_t* src_ptr2;
+
+        switch (src){
+            case REG_BC: src_ptr1 = &cpu->B; src_ptr2 = &cpu->C; break;
+            case REG_DE: src_ptr1 = &cpu->D; src_ptr2 = &cpu->E; break;
+            case REG_HL: src_ptr1 = &cpu->H; src_ptr2 = &cpu->L; break; 
+        }
+
+        R16 = ((uint16_t)*src_ptr2) | ((uint16_t)(*src_ptr1 << 8));
+
+        sum = HL + R16;
+    }
+
+    // flags
+    cpu->F &= ~FLAG_N;
+
+    if (sum < HL){
+        cpu->F |= FLAG_C;
+    } else {
+        cpu->F &= ~FLAG_C;
+    }
+
+    if (((HL & 0x0FFF) + (R16 & 0x0FFF)) > 0x0FFF){
+        cpu->F |= FLAG_H;
+    } else {
+        cpu->F &= ~FLAG_H;
+    }
+
+    cpu->L = sum & 0xFF;
+    cpu->H = (sum >> 8) & 0xFF;
+
+    return cycles;
+}
+uint8_t ADD_R8(CPU* cpu, reg8_t src){
+    uint8_t cycles = 4;
+
+    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* src_ptr = get_r8_adr(cpu, src);
+    uint8_t sum;
+
+    sum = *dst_ptr + *src_ptr;
+
+    // flags
+    cpu->F &= ~FLAG_N;
+
+    if (sum == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    if (sum < *dst_ptr){
+        cpu->F |= FLAG_C;
+    } else {
+        cpu->F &= ~FLAG_C;
+    }
+
+    if ((*dst_ptr & 0x0F) + (*src_ptr & 0x0F) > 0x0F){
+        cpu->F |= FLAG_H;
+    } else {
+        cpu->F &= ~FLAG_H;
+    }
+
+    *dst_ptr = sum;
+
+    return cycles;
+}
+uint8_t SUB_R8(CPU* cpu, reg8_t src){
+    uint8_t cycles = 4;
+
+    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* src_ptr = get_r8_adr(cpu, src);
+    uint8_t diff;
+
+    diff = *dst_ptr - *src_ptr;
+
+    // flags
+    cpu->F |= FLAG_N;
+
+    if (diff == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    if (*src_ptr > *dst_ptr){
+        cpu->F |= FLAG_C;
+    } else {
+        cpu->F &= ~FLAG_C;
+    }
+
+    if ((*dst_ptr & 0x0F) - (*src_ptr & 0x0F) < 0xF0){
+        cpu->F |= FLAG_H;
+    } else {
+        cpu->F &= ~FLAG_H;
+    }
+
+    *dst_ptr = diff;
+
+    return cycles;
+}
 uint8_t AND_R8(CPU* cpu, reg8_t src);
 uint8_t OR_R8(CPU* cpu, reg8_t src);
 uint8_t CP_R8(CPU* cpu, reg8_t src);
@@ -88,121 +310,271 @@ uint8_t LD_BC_N16_0x01(CPU* cpu){
     return LD_R16_N16(cpu, REG_BC);
 }
 uint8_t LD_BC_A_0x02(CPU* cpu);
-uint8_t INC_BC_0x03(CPU* cpu);
-uint8_t INC_B_0x04(CPU* cpu);
-uint8_t DEC_B_0x05(CPU* cpu);
-uint8_t LD_B_N8_0x06(CPU* cpu);
+uint8_t INC_BC_0x03(CPU* cpu){
+    return INC_R16(cpu, REG_BC);
+}
+uint8_t INC_B_0x04(CPU* cpu){
+    return INC_R8(cpu, REG_B);
+}
+uint8_t DEC_B_0x05(CPU* cpu){
+    return DEC_R8(cpu, REG_B);
+}
+uint8_t LD_B_N8_0x06(CPU* cpu){
+    return LD_R8_N8(cpu, REG_B);
+}
 uint8_t RLCA_0x07(CPU* cpu);
 uint8_t LD_A16_SP_0x08(CPU* cpu);
-uint8_t ADD_HL_BC_0x09(CPU* cpu);
+uint8_t ADD_HL_BC_0x09(CPU* cpu){
+    return ADD_HL_R16(cpu, REG_BC);
+}
 uint8_t LD_A_BC_0x0A(CPU* cpu);
-uint8_t DEC_BC_0x0B(CPU* cpu);
-uint8_t INC_C_0x0C(CPU* cpu);
-uint8_t DEC_C_0x0D(CPU* cpu);
-uint8_t LD_C_N8_0x0E(CPU* cpu);
+uint8_t DEC_BC_0x0B(CPU* cpu){
+    return DEC_R16(cpu, REG_BC);
+}
+uint8_t INC_C_0x0C(CPU* cpu){
+    return INC_R8(cpu, REG_C);
+}
+uint8_t DEC_C_0x0D(CPU* cpu){
+    return DEC_R8(cpu, REG_C);
+}
+uint8_t LD_C_N8_0x0E(CPU* cpu){
+    return LD_R8_N8(cpu, REG_C);
+}
 uint8_t RRCA_0x0F(CPU* cpu);
 uint8_t STOP_N8_0x10(CPU* cpu);
 uint8_t LD_DE_N16_0x11(CPU* cpu){
     return LD_R16_N16(cpu, REG_DE);
 }
 uint8_t LD_DE_A_0x12(CPU* cpu);
-uint8_t INC_DE_0x13(CPU* cpu);
-uint8_t INC_D_0x14(CPU* cpu);
-uint8_t DEC_D_0x15(CPU* cpu);
-uint8_t LD_D_N8_0x16(CPU* cpu);
+uint8_t INC_DE_0x13(CPU* cpu){
+    return INC_R16(cpu, REG_DE);
+}
+uint8_t INC_D_0x14(CPU* cpu){
+    return INC_R8(cpu, REG_D);
+}
+uint8_t DEC_D_0x15(CPU* cpu){
+    return DEC_R8(cpu, REG_D);
+}
+uint8_t LD_D_N8_0x16(CPU* cpu){
+    return LD_R8_N8(cpu, REG_D);
+}
 uint8_t RLA_0x17(CPU* cpu);
 uint8_t JR_E8_0x18(CPU* cpu);
-uint8_t ADD_HL_DE_0x19(CPU* cpu);
+uint8_t ADD_HL_DE_0x19(CPU* cpu){
+    return ADD_HL_R16(cpu, REG_DE);
+}
 uint8_t LD_A_DE_0x1A(CPU* cpu);
-uint8_t DEC_DE_0x1B(CPU* cpu);
-uint8_t INC_E_0x1C(CPU* cpu);
-uint8_t DEC_E_0x1D(CPU* cpu);
-uint8_t LD_E_N8_0x1E(CPU* cpu);
+uint8_t DEC_DE_0x1B(CPU* cpu){
+    return DEC_R16(cpu, REG_DE);
+}
+uint8_t INC_E_0x1C(CPU* cpu){
+    return INC_R8(cpu, REG_E);
+}
+uint8_t DEC_E_0x1D(CPU* cpu){
+    return DEC_R8(cpu, REG_E);
+}
+uint8_t LD_E_N8_0x1E(CPU* cpu){
+    return LD_R8_N8(cpu, REG_E);
+}
 uint8_t RRA_0x1F(CPU* cpu);
 uint8_t JR_NZ_E8_0x20(CPU* cpu);
 uint8_t LD_HL_N16_0x21(CPU* cpu){
     return LD_R16_N16(cpu, REG_HL);
 }
 uint8_t LD_HL_A_0x22(CPU* cpu);
-uint8_t INC_HL_0x23(CPU* cpu);
-uint8_t INC_H_0x24(CPU* cpu);
-uint8_t DEC_H_0x25(CPU* cpu);
-uint8_t LD_H_N8_0x26(CPU* cpu);
+uint8_t INC_HL_0x23(CPU* cpu){
+    return INC_R16(cpu, REG_HL);
+}
+uint8_t INC_H_0x24(CPU* cpu){
+    return INC_R8(cpu, REG_H);
+}
+uint8_t DEC_H_0x25(CPU* cpu){
+    return DEC_R8(cpu, REG_H);
+}
+uint8_t LD_H_N8_0x26(CPU* cpu){
+    return LD_R8_N8(cpu, REG_H);
+}
 uint8_t DAA_0x27(CPU* cpu);
 uint8_t JR_Z_E8_0x28(CPU* cpu);
-uint8_t ADD_HL_HL_0x29(CPU* cpu);
+uint8_t ADD_HL_HL_0x29(CPU* cpu){
+    return ADD_HL_R16(cpu, REG_HL);
+}
 uint8_t LD_A_HL_0x2A(CPU* cpu);
-uint8_t DEC_HL_0x2B(CPU* cpu);
-uint8_t INC_L_0x2C(CPU* cpu);
-uint8_t DEC_L_0x2D(CPU* cpu);
-uint8_t LD_L_N8_0x2E(CPU* cpu);
+uint8_t DEC_HL_0x2B(CPU* cpu){
+    return DEC_R16(cpu, REG_HL);
+}
+uint8_t INC_L_0x2C(CPU* cpu){
+    return INC_R8(cpu, REG_L);
+}
+uint8_t DEC_L_0x2D(CPU* cpu){
+    return DEC_R8(cpu, REG_L);
+}
+uint8_t LD_L_N8_0x2E(CPU* cpu){
+    return LD_R8_N8(cpu, REG_L);
+}
 uint8_t CPL_0x2F(CPU* cpu);
 uint8_t JR_NC_E8_0x30(CPU* cpu);
 uint8_t LD_SP_N16_0x31(CPU* cpu){
     return LD_R16_N16(cpu, REG_SP);
 }
 uint8_t LD_HL_A_0x32(CPU* cpu);
-uint8_t INC_SP_0x33(CPU* cpu);
+uint8_t INC_SP_0x33(CPU* cpu){
+    return INC_R16(cpu, REG_SP);
+}
 uint8_t INC_HL_0x34(CPU* cpu);
 uint8_t DEC_HL_0x35(CPU* cpu);
 uint8_t LD_HL_N8_0x36(CPU* cpu);
 uint8_t SCF_0x37(CPU* cpu);
 uint8_t JR_C_E8_0x38(CPU* cpu);
-uint8_t ADD_HL_SP_0x39(CPU* cpu);
+uint8_t ADD_HL_SP_0x39(CPU* cpu){
+    return ADD_HL_R16(cpu, REG_SP);
+}
 uint8_t LD_A_HL_0x3A(CPU* cpu);
-uint8_t DEC_SP_0x3B(CPU* cpu);
-uint8_t INC_A_0x3C(CPU* cpu);
-uint8_t DEC_A_0x3D(CPU* cpu);
-uint8_t LD_A_N8_0x3E(CPU* cpu);
+uint8_t DEC_SP_0x3B(CPU* cpu){
+    return DEC_R16(cpu, REG_SP);
+}
+uint8_t INC_A_0x3C(CPU* cpu){
+    return INC_R8(cpu, REG_A);
+}
+uint8_t DEC_A_0x3D(CPU* cpu){
+    return DEC_R8(cpu, REG_A);
+}
+uint8_t LD_A_N8_0x3E(CPU* cpu){
+    return LD_R8_N8(cpu, REG_A);
+}
 uint8_t CCF_0x3F(CPU* cpu);
-uint8_t LD_B_B_0x40(CPU* cpu);
-uint8_t LD_B_C_0x41(CPU* cpu);
-uint8_t LD_B_D_0x42(CPU* cpu);
-uint8_t LD_B_E_0x43(CPU* cpu);
-uint8_t LD_B_H_0x44(CPU* cpu);
-uint8_t LD_B_L_0x45(CPU* cpu);
+uint8_t LD_B_B_0x40(CPU* cpu){
+    return LD_R8_R8(cpu, REG_B, REG_B);
+}
+uint8_t LD_B_C_0x41(CPU* cpu){
+    return LD_R8_R8(cpu, REG_B, REG_C);
+}
+uint8_t LD_B_D_0x42(CPU* cpu){
+    return LD_R8_R8(cpu, REG_B, REG_D);
+}
+uint8_t LD_B_E_0x43(CPU* cpu){
+    return LD_R8_R8(cpu, REG_B, REG_E);
+}
+uint8_t LD_B_H_0x44(CPU* cpu){
+    return LD_R8_R8(cpu, REG_B, REG_H);
+}
+uint8_t LD_B_L_0x45(CPU* cpu){
+    return LD_R8_R8(cpu, REG_B, REG_L);
+}
 uint8_t LD_B_HL_0x46(CPU* cpu);
-uint8_t LD_B_A_0x47(CPU* cpu);
-uint8_t LD_C_B_0x48(CPU* cpu);
-uint8_t LD_C_C_0x49(CPU* cpu);
-uint8_t LD_C_D_0x4A(CPU* cpu);
-uint8_t LD_C_E_0x4B(CPU* cpu);
-uint8_t LD_C_H_0x4C(CPU* cpu);
-uint8_t LD_C_L_0x4D(CPU* cpu);
+uint8_t LD_B_A_0x47(CPU* cpu){
+    return LD_R8_R8(cpu, REG_B, REG_A);
+}
+uint8_t LD_C_B_0x48(CPU* cpu){
+    return LD_R8_R8(cpu, REG_C, REG_B);
+}
+uint8_t LD_C_C_0x49(CPU* cpu){
+    return LD_R8_R8(cpu, REG_C, REG_C);
+}
+uint8_t LD_C_D_0x4A(CPU* cpu){
+    return LD_R8_R8(cpu, REG_C, REG_D);
+}
+uint8_t LD_C_E_0x4B(CPU* cpu){
+    return LD_R8_R8(cpu, REG_C, REG_E);
+}
+uint8_t LD_C_H_0x4C(CPU* cpu){
+    return LD_R8_R8(cpu, REG_C, REG_H);
+}
+uint8_t LD_C_L_0x4D(CPU* cpu){
+    return LD_R8_R8(cpu, REG_C, REG_L);
+}
 uint8_t LD_C_HL_0x4E(CPU* cpu);
-uint8_t LD_C_A_0x4F(CPU* cpu);
-uint8_t LD_D_B_0x50(CPU* cpu);
-uint8_t LD_D_C_0x51(CPU* cpu);
-uint8_t LD_D_D_0x52(CPU* cpu);
-uint8_t LD_D_E_0x53(CPU* cpu);
-uint8_t LD_D_H_0x54(CPU* cpu);
-uint8_t LD_D_L_0x55(CPU* cpu);
+uint8_t LD_C_A_0x4F(CPU* cpu){
+    return LD_R8_R8(cpu, REG_C, REG_A);
+}
+uint8_t LD_D_B_0x50(CPU* cpu){
+    return LD_R8_R8(cpu, REG_D, REG_B);
+}
+uint8_t LD_D_C_0x51(CPU* cpu){
+    return LD_R8_R8(cpu, REG_D, REG_C);
+}
+uint8_t LD_D_D_0x52(CPU* cpu){
+    return LD_R8_R8(cpu, REG_D, REG_D);
+}
+uint8_t LD_D_E_0x53(CPU* cpu){
+    return LD_R8_R8(cpu, REG_D, REG_E);
+}
+uint8_t LD_D_H_0x54(CPU* cpu){
+    return LD_R8_R8(cpu, REG_D, REG_H);
+}
+uint8_t LD_D_L_0x55(CPU* cpu){
+    return LD_R8_R8(cpu, REG_D, REG_L);
+}
 uint8_t LD_D_HL_0x56(CPU* cpu);
-uint8_t LD_D_A_0x57(CPU* cpu);
-uint8_t LD_E_B_0x58(CPU* cpu);
-uint8_t LD_E_C_0x59(CPU* cpu);
-uint8_t LD_E_D_0x5A(CPU* cpu);
-uint8_t LD_E_E_0x5B(CPU* cpu);
-uint8_t LD_E_H_0x5C(CPU* cpu);
-uint8_t LD_E_L_0x5D(CPU* cpu);
+uint8_t LD_D_A_0x57(CPU* cpu){
+    return LD_R8_R8(cpu, REG_D, REG_A);
+}
+uint8_t LD_E_B_0x58(CPU* cpu){
+    return LD_R8_R8(cpu, REG_E, REG_B);
+}
+uint8_t LD_E_C_0x59(CPU* cpu){
+    return LD_R8_R8(cpu, REG_E, REG_C);
+}
+uint8_t LD_E_D_0x5A(CPU* cpu){
+    return LD_R8_R8(cpu, REG_E, REG_D);
+}
+uint8_t LD_E_E_0x5B(CPU* cpu){
+    return LD_R8_R8(cpu, REG_E, REG_E);
+}
+uint8_t LD_E_H_0x5C(CPU* cpu){
+    return LD_R8_R8(cpu, REG_E, REG_H);
+}
+uint8_t LD_E_L_0x5D(CPU* cpu){
+    return LD_R8_R8(cpu, REG_E, REG_L);
+}
 uint8_t LD_E_HL_0x5E(CPU* cpu);
-uint8_t LD_E_A_0x5F(CPU* cpu);
-uint8_t LD_H_B_0x60(CPU* cpu);
-uint8_t LD_H_C_0x61(CPU* cpu);
-uint8_t LD_H_D_0x62(CPU* cpu);
-uint8_t LD_H_E_0x63(CPU* cpu);
-uint8_t LD_H_H_0x64(CPU* cpu);
-uint8_t LD_H_L_0x65(CPU* cpu);
+uint8_t LD_E_A_0x5F(CPU* cpu){
+    return LD_R8_R8(cpu, REG_E, REG_A);
+}
+uint8_t LD_H_B_0x60(CPU* cpu){
+    return LD_R8_R8(cpu, REG_H, REG_B);
+}
+uint8_t LD_H_C_0x61(CPU* cpu){
+    return LD_R8_R8(cpu, REG_H, REG_C);
+}
+uint8_t LD_H_D_0x62(CPU* cpu){
+    return LD_R8_R8(cpu, REG_H, REG_D);
+}
+uint8_t LD_H_E_0x63(CPU* cpu){
+    return LD_R8_R8(cpu, REG_H, REG_E);
+}
+uint8_t LD_H_H_0x64(CPU* cpu){
+    return LD_R8_R8(cpu, REG_H, REG_H);
+}
+uint8_t LD_H_L_0x65(CPU* cpu){
+    return LD_R8_R8(cpu, REG_H, REG_L);
+}
 uint8_t LD_H_HL_0x66(CPU* cpu);
-uint8_t LD_H_A_0x67(CPU* cpu);
-uint8_t LD_L_B_0x68(CPU* cpu);
-uint8_t LD_L_C_0x69(CPU* cpu);
-uint8_t LD_L_D_0x6A(CPU* cpu);
-uint8_t LD_L_E_0x6B(CPU* cpu);
-uint8_t LD_L_H_0x6C(CPU* cpu);
-uint8_t LD_L_L_0x6D(CPU* cpu);
+uint8_t LD_H_A_0x67(CPU* cpu){
+    return LD_R8_R8(cpu, REG_H, REG_A);
+}
+uint8_t LD_L_B_0x68(CPU* cpu){
+    return LD_R8_R8(cpu, REG_L, REG_B);
+}
+uint8_t LD_L_C_0x69(CPU* cpu){
+    return LD_R8_R8(cpu, REG_L, REG_C);
+}
+uint8_t LD_L_D_0x6A(CPU* cpu){
+    return LD_R8_R8(cpu, REG_L, REG_D);
+}
+uint8_t LD_L_E_0x6B(CPU* cpu){
+    return LD_R8_R8(cpu, REG_L, REG_E);
+}
+uint8_t LD_L_H_0x6C(CPU* cpu){
+    return LD_R8_R8(cpu, REG_L, REG_H);
+}
+uint8_t LD_L_L_0x6D(CPU* cpu){
+    return LD_R8_R8(cpu, REG_L, REG_L);
+}
 uint8_t LD_L_HL_0x6E(CPU* cpu);
-uint8_t LD_L_A_0x6F(CPU* cpu);
+uint8_t LD_L_A_0x6F(CPU* cpu){
+    return LD_R8_R8(cpu, REG_L, REG_A);
+}
 uint8_t LD_HL_B_0x70(CPU* cpu);
 uint8_t LD_HL_C_0x71(CPU* cpu);
 uint8_t LD_HL_D_0x72(CPU* cpu);
@@ -211,22 +583,50 @@ uint8_t LD_HL_H_0x74(CPU* cpu);
 uint8_t LD_HL_L_0x75(CPU* cpu);
 uint8_t HALT_0x76(CPU* cpu);
 uint8_t LD_HL_A_0x77(CPU* cpu);
-uint8_t LD_A_B_0x78(CPU* cpu);
-uint8_t LD_A_C_0x79(CPU* cpu);
-uint8_t LD_A_D_0x7A(CPU* cpu);
-uint8_t LD_A_E_0x7B(CPU* cpu);
-uint8_t LD_A_H_0x7C(CPU* cpu);
-uint8_t LD_A_L_0x7D(CPU* cpu);
+uint8_t LD_A_B_0x78(CPU* cpu){
+    return LD_R8_R8(cpu, REG_A, REG_B);
+}
+uint8_t LD_A_C_0x79(CPU* cpu){
+    return LD_R8_R8(cpu, REG_A, REG_C);
+}
+uint8_t LD_A_D_0x7A(CPU* cpu){
+    return LD_R8_R8(cpu, REG_A, REG_D);
+}
+uint8_t LD_A_E_0x7B(CPU* cpu){
+    return LD_R8_R8(cpu, REG_A, REG_E);
+}
+uint8_t LD_A_H_0x7C(CPU* cpu){
+    return LD_R8_R8(cpu, REG_A, REG_H);
+}
+uint8_t LD_A_L_0x7D(CPU* cpu){
+    return LD_R8_R8(cpu, REG_A, REG_L);
+}
 uint8_t LD_A_HL_0x7E(CPU* cpu);
-uint8_t LD_A_A_0x7F(CPU* cpu);
-uint8_t ADD_A_B_0x80(CPU* cpu);
-uint8_t ADD_A_C_0x81(CPU* cpu);
-uint8_t ADD_A_D_0x82(CPU* cpu);
-uint8_t ADD_A_E_0x83(CPU* cpu);
-uint8_t ADD_A_H_0x84(CPU* cpu);
-uint8_t ADD_A_L_0x85(CPU* cpu);
+uint8_t LD_A_A_0x7F(CPU* cpu){
+    return LD_R8_R8(cpu, REG_A, REG_A);
+}
+uint8_t ADD_A_B_0x80(CPU* cpu){
+    return ADD_R8(cpu, REG_B);
+}
+uint8_t ADD_A_C_0x81(CPU* cpu){
+    return ADD_R8(cpu, REG_C);
+}
+uint8_t ADD_A_D_0x82(CPU* cpu){
+    return ADD_R8(cpu, REG_D);
+}
+uint8_t ADD_A_E_0x83(CPU* cpu){
+    return ADD_R8(cpu, REG_E);
+}
+uint8_t ADD_A_H_0x84(CPU* cpu){
+    return ADD_R8(cpu, REG_H);
+}
+uint8_t ADD_A_L_0x85(CPU* cpu){
+    return ADD_R8(cpu, REG_L);
+}
 uint8_t ADD_A_HL_0x86(CPU* cpu);
-uint8_t ADD_A_A_0x87(CPU* cpu);
+uint8_t ADD_A_A_0x87(CPU* cpu){
+    return ADD_R8(cpu, REG_A);
+}
 uint8_t ADC_A_B_0x88(CPU* cpu);
 uint8_t ADC_A_C_0x89(CPU* cpu);
 uint8_t ADC_A_D_0x8A(CPU* cpu);

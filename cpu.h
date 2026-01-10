@@ -4,6 +4,11 @@
 #include <stdint.h>
 #include "mmu.h"
 
+#define FLAG_Z (1 << 7)
+#define FLAG_N (1 << 6)
+#define FLAG_H (1 << 5)
+#define FLAG_C (1 << 4)
+
 typedef enum {
     REG_AF, REG_BC, REG_DE, REG_HL, REG_SP, REG_PC
 } reg16_t;
@@ -31,21 +36,21 @@ void cpu_execute(CPU* cpu);
 uint8_t* get_r8_adr(CPU* cpu, reg8_t reg);
 
 // helpers
-uint8_t LD_R16_N16(CPU* cpu, reg16_t reg);
-uint8_t LD_R8_R8(CPU* cpu, reg8_t reg1, reg8_t reg2);
-uint8_t LD_R8_N8(CPU* cpu, reg8_t reg);
-uint8_t INC_R8(CPU* cpu, reg8_t reg);
-uint8_t INC_R16(CPU* cpu, reg16_t reg);
-uint8_t DEC_R16(CPU* cpu, reg16_t reg);
-uint8_t DEC_R8(CPU* cpu, reg8_t reg);
-uint8_t ADD_R16_R16(CPU* cpu, reg16_t reg1, reg16_t reg2);
-uint8_t ADD_R8_R8(CPU* cpu, reg8_t reg1, reg8_t reg2);
-uint8_t SUB_R8(CPU* cpu, reg8_t reg);
-uint8_t AND_R8(CPU* cpu, reg8_t reg);
-uint8_t OR_R8(CPU* cpu, reg8_t reg);
-uint8_t CP_R8(CPU* cpu, reg8_t reg);
-uint8_t POP_R16(CPU* cpu, reg16_t reg);
-uint8_t PUSH_R16(CPU* cpu, reg16_t reg);
+uint8_t LD_R16_N16(CPU* cpu, reg16_t dst);
+uint8_t LD_R8_R8(CPU* cpu, reg8_t dst, reg8_t src);
+uint8_t LD_R8_N8(CPU* cpu, reg8_t dst);
+uint8_t INC_R8(CPU* cpu, reg8_t dst);
+uint8_t INC_R16(CPU* cpu, reg16_t dst);
+uint8_t DEC_R16(CPU* cpu, reg16_t dst);
+uint8_t DEC_R8(CPU* cpu, reg8_t dst);
+uint8_t ADD_HL_R16(CPU* cpu, reg16_t src);
+uint8_t ADD_R8(CPU* cpu, reg8_t src);
+uint8_t SUB_R8(CPU* cpu, reg8_t src);
+uint8_t AND_R8(CPU* cpu, reg8_t src);
+uint8_t OR_R8(CPU* cpu, reg8_t src);
+uint8_t CP_R8(CPU* cpu, reg8_t src);
+uint8_t POP_R16(CPU* cpu, reg16_t src);
+uint8_t PUSH_R16(CPU* cpu, reg16_t src);
 
 
 // No Prefix
