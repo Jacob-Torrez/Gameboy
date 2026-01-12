@@ -29,6 +29,10 @@ uint8_t* get_r8_adr(CPU* cpu, reg8_t reg){
     }
 }
 
+uint16_t get_hl(CPU* cpu){
+    return ((uint16_t)cpu->L) | ((uint16_t)(cpu->H << 8));
+}
+
 // helpers
 uint8_t LD_R16_N16(CPU* cpu, reg16_t dst){
     uint8_t cycles = 12;
@@ -553,6 +557,18 @@ uint8_t PUSH_R16(CPU* cpu, reg16_t src){
 
     return cycles;
 }
+uint8_t RST(CPU* cpu, uint8_t vec){
+    uint8_t cycles = 16;
+
+    uint16_t PC = cpu->PC;
+
+    write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
+    write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
+
+    cpu->PC = 0x0008 * vec;
+
+    return cycles;
+}
 
 // No Prefix
 uint8_t NOP_0x00(CPU* cpu){
@@ -777,7 +793,7 @@ uint8_t JR_NZ_E8_0x20(CPU* cpu){
 uint8_t LD_HL_N16_0x21(CPU* cpu){
     return LD_R16_N16(cpu, REG_HL);
 }
-uint8_t LD_HLi_A_0x22(CPU* cpu){
+uint8_t LD_mHLi_A_0x22(CPU* cpu){
     uint8_t cycles = 8;
 
     LD_mR16_R8(cpu, REG_HL, REG_A);
@@ -855,7 +871,7 @@ uint8_t JR_Z_E8_0x28(CPU* cpu){
 uint8_t ADD_HL_HL_0x29(CPU* cpu){
     return ADD_HL_R16(cpu, REG_HL);
 }
-uint8_t LD_A_HLi_0x2A(CPU* cpu){
+uint8_t LD_A_mHLi_0x2A(CPU* cpu){
     uint8_t cycles = 8;
 
     LD_R8_mR16(cpu, REG_A, REG_HL);
@@ -907,7 +923,7 @@ uint8_t JR_NC_E8_0x30(CPU* cpu){
 uint8_t LD_SP_N16_0x31(CPU* cpu){
     return LD_R16_N16(cpu, REG_SP);
 }
-uint8_t LD_HLd_A_0x32(CPU* cpu){
+uint8_t LD_mHLd_A_0x32(CPU* cpu){
     uint8_t cycles = 8;
 
     LD_mR16_R8(cpu, REG_HL, REG_A);
@@ -922,11 +938,10 @@ uint8_t LD_HLd_A_0x32(CPU* cpu){
 uint8_t INC_SP_0x33(CPU* cpu){
     return INC_R16(cpu, REG_SP);
 }
-uint8_t INC_HL_0x34(CPU* cpu){
+uint8_t INC_mHL_0x34(CPU* cpu){
     uint8_t cycles = 12;
 
-    uint16_t HL = (((uint16_t)cpu->L) | ((uint16_t)(cpu->H << 8)));
-
+    uint16_t HL = get_hl(cpu);
     uint8_t mHL = read_byte(cpu->mmu, HL);
 
     write_byte(cpu->mmu, HL, mHL + 1);
@@ -948,11 +963,10 @@ uint8_t INC_HL_0x34(CPU* cpu){
 
     return cycles;
 }
-uint8_t DEC_HL_0x35(CPU* cpu){
+uint8_t DEC_mHL_0x35(CPU* cpu){
     uint8_t cycles = 12;
 
-    uint16_t HL = (((uint16_t)cpu->L) | ((uint16_t)(cpu->H << 8)));
-
+    uint16_t HL = get_hl(cpu);
     uint8_t mHL = read_byte(cpu->mmu, HL);
 
     write_byte(cpu->mmu, HL, mHL - 1);
@@ -974,12 +988,11 @@ uint8_t DEC_HL_0x35(CPU* cpu){
 
     return cycles;
 }
-uint8_t LD_HL_N8_0x36(CPU* cpu){
+uint8_t LD_mHL_N8_0x36(CPU* cpu){
     uint8_t cycles = 12;
 
     uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
-    uint16_t HL = (((uint16_t)cpu->L) | ((uint16_t)(cpu->H << 8)));
-
+    uint16_t HL = get_hl(cpu);
     write_byte(cpu->mmu, HL, N8);
 
     return cycles;
@@ -1012,15 +1025,15 @@ uint8_t JR_C_E8_0x38(CPU* cpu){
 uint8_t ADD_HL_SP_0x39(CPU* cpu){
     return ADD_HL_R16(cpu, REG_SP);
 }
-uint8_t LD_A_HLd_0x3A(CPU* cpu){
+uint8_t LD_A_mHLd_0x3A(CPU* cpu){
     uint8_t cycles = 8;
 
     LD_R8_mR16(cpu, REG_A, REG_HL);
 
-    uint16_t HL = (((uint16_t)cpu->L) | ((uint16_t)(cpu->H << 8))) - 1;
+    uint16_t HLd = (((uint16_t)cpu->L) | ((uint16_t)(cpu->H << 8))) - 1;
 
-    cpu->L = (uint8_t)HL;
-    cpu->H = (uint8_t)((HL & 0xFF00) >> 8);
+    cpu->L = (uint8_t)HLd;
+    cpu->H = (uint8_t)((HLd & 0xFF00) >> 8);
 
     return cycles;
 }
@@ -1256,7 +1269,43 @@ uint8_t ADD_A_H_0x84(CPU* cpu){
 uint8_t ADD_A_L_0x85(CPU* cpu){
     return ADD_R8(cpu, REG_L);
 }
-uint8_t ADD_A_HL_0x86(CPU* cpu);
+uint8_t ADD_A_mHL_0x86(CPU* cpu){
+    uint8_t cycles = 8;
+
+    uint8_t* dst_ptr = &cpu->A;
+
+    uint16_t HL = get_hl(cpu);
+    uint8_t mHL = read_byte(cpu->mmu, HL);
+
+    uint16_t result;
+
+    result = *dst_ptr + mHL;
+
+    // flags
+    cpu->F &= ~FLAG_N;
+
+    if ((uint8_t)result == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    if (result > 0xFF){
+        cpu->F |= FLAG_C;
+    } else {
+        cpu->F &= ~FLAG_C;
+    }
+
+    if ((*dst_ptr & 0x0F) + (mHL & 0x0F) > 0x0F){
+        cpu->F |= FLAG_H;
+    } else {
+        cpu->F &= ~FLAG_H;
+    }
+
+    *dst_ptr = (uint8_t)result;
+
+    return cycles;
+}
 uint8_t ADD_A_A_0x87(CPU* cpu){
     return ADD_R8(cpu, REG_A);
 }
@@ -1278,7 +1327,43 @@ uint8_t ADC_A_H_0x8C(CPU* cpu){
 uint8_t ADC_A_L_0x8D(CPU* cpu){
     return ADC_R8(cpu, REG_L);
 }
-uint8_t ADC_A_HL_0x8E(CPU* cpu);
+uint8_t ADC_A_mHL_0x8E(CPU* cpu){
+    uint8_t cycles = 8;
+
+    uint8_t* dst_ptr = &cpu->A;
+    
+    uint16_t HL = get_hl(cpu);
+    uint8_t mHL = read_byte(cpu->mmu, HL);
+
+    uint16_t result;
+
+    result = *dst_ptr + mHL + ((cpu->F & FLAG_C) >> 4);
+
+    // flags
+    cpu->F &= ~FLAG_N;
+
+    if ((uint8_t)result == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    if ((*dst_ptr & 0x0F) + (mHL & 0x0F) + ((cpu->F & FLAG_C) >> 4) > 0x0F){
+        cpu->F |= FLAG_H;
+    } else {
+        cpu->F &= ~FLAG_H;
+    }
+
+    if (result > 0xFF){
+        cpu->F |= FLAG_C;
+    } else {
+        cpu->F &= ~FLAG_C;
+    }
+
+    *dst_ptr = (uint8_t) result;
+
+    return cycles;
+}
 uint8_t ADC_A_A_0x8F(CPU* cpu){
     return ADC_R8(cpu, REG_A);
 }
@@ -1300,7 +1385,43 @@ uint8_t SUB_A_H_0x94(CPU* cpu){
 uint8_t SUB_A_L_0x95(CPU* cpu){
     return SUB_R8(cpu, REG_L);
 }
-uint8_t SUB_A_HL_0x96(CPU* cpu);
+uint8_t SUB_A_mHL_0x96(CPU* cpu){
+    uint8_t cycles = 8;
+
+    uint8_t* dst_ptr = &cpu->A;
+
+    uint16_t HL = get_hl(cpu);
+    uint8_t mHL = read_byte(cpu->mmu, HL);
+
+    uint8_t result;
+
+    result = *dst_ptr - mHL;
+
+    // flags
+    cpu->F |= FLAG_N;
+
+    if (result == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    if (mHL > *dst_ptr){
+        cpu->F |= FLAG_C;
+    } else {
+        cpu->F &= ~FLAG_C;
+    }
+
+    if ((*dst_ptr & 0x0F) < (mHL & 0x0F)){
+        cpu->F |= FLAG_H;
+    } else {
+        cpu->F &= ~FLAG_H;
+    }
+
+    *dst_ptr = result;
+
+    return cycles;
+}
 uint8_t SUB_A_A_0x97(CPU* cpu){
     return SUB_R8(cpu, REG_A);
 }
@@ -1322,7 +1443,43 @@ uint8_t SBC_A_H_0x9C(CPU* cpu){
 uint8_t SBC_A_L_0x9D(CPU* cpu){
     return SBC_R8(cpu, REG_L);
 }
-uint8_t SBC_A_HL_0x9E(CPU* cpu);
+uint8_t SBC_A_mHL_0x9E(CPU* cpu){
+    uint8_t cycles = 8;
+
+    uint8_t* dst_ptr = &cpu->A;
+
+    uint16_t HL = get_hl(cpu);
+    uint8_t mHL = read_byte(cpu->mmu, HL);
+
+    uint8_t result;
+
+    result = *dst_ptr - mHL - ((cpu->F & FLAG_C) >> 4);
+
+    // flags
+    cpu->F |= FLAG_N;
+
+    if (result == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    if ((*dst_ptr & 0x0F) < (mHL & 0x0F) + ((cpu->F & FLAG_C) >> 4)){
+        cpu->F |= FLAG_H;
+    } else {
+        cpu->F &= ~FLAG_H;
+    }
+
+    if ((uint16_t)mHL+ ((cpu->F & FLAG_C) >> 4) > *dst_ptr){
+        cpu->F |= FLAG_C;
+    } else {
+        cpu->F &= ~FLAG_C;
+    }
+
+    *dst_ptr = result;
+
+    return cycles;
+}
 uint8_t SBC_A_A_0x9F(CPU* cpu){
     return SBC_R8(cpu, REG_A);
 }
@@ -1344,7 +1501,35 @@ uint8_t AND_A_H_0xA4(CPU* cpu){
 uint8_t AND_A_L_0xA5(CPU* cpu){
     return AND_R8(cpu, REG_L);
 }
-uint8_t AND_A_HL_0xA6(CPU* cpu);
+uint8_t AND_A_mHL_0xA6(CPU* cpu){
+    uint8_t cycles = 8;
+
+    uint8_t* dst_ptr = &cpu->A;
+
+    uint16_t HL = get_hl(cpu);
+    uint8_t mHL = read_byte(cpu->mmu, HL);
+
+    uint8_t result;
+
+    result = *dst_ptr & mHL;
+
+    // flags
+    if (result == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    cpu->F &= ~FLAG_N;
+
+    cpu->F |= FLAG_H;
+
+    cpu->F &= ~FLAG_C;
+
+    *dst_ptr = result;
+
+    return cycles;
+}
 uint8_t AND_A_A_0xA7(CPU* cpu){
     return AND_R8(cpu, REG_A);
 }
@@ -1366,7 +1551,35 @@ uint8_t XOR_A_H_0xAC(CPU* cpu){
 uint8_t XOR_A_L_0xAD(CPU* cpu){
     return XOR_R8(cpu, REG_L);
 }
-uint8_t XOR_A_HL_0xAE(CPU* cpu);
+uint8_t XOR_A_mHL_0xAE(CPU* cpu){
+    uint8_t cycles = 8;
+
+    uint8_t* dst_ptr = &cpu->A;
+
+    uint16_t HL = get_hl(cpu);
+    uint8_t mHL = read_byte(cpu->mmu, HL);
+
+    uint8_t result;
+
+    result = *dst_ptr ^ mHL;
+
+    // flags
+    if (result == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    cpu->F &= ~FLAG_N;
+
+    cpu->F &= ~FLAG_H;
+
+    cpu->F &= ~FLAG_C;
+
+    *dst_ptr = result;
+
+    return cycles;
+}
 uint8_t XOR_A_A_0xAF(CPU* cpu){
     return XOR_R8(cpu, REG_A);
 }
@@ -1388,7 +1601,35 @@ uint8_t OR_A_H_0xB4(CPU* cpu){
 uint8_t OR_A_L_0xB5(CPU* cpu){
     return OR_R8(cpu, REG_L);
 }
-uint8_t OR_A_HL_0xB6(CPU* cpu);
+uint8_t OR_A_mHL_0xB6(CPU* cpu){
+    uint8_t cycles = 8;
+
+    uint8_t* dst_ptr = &cpu->A;
+
+    uint16_t HL = get_hl(cpu);
+    uint8_t mHL = read_byte(cpu->mmu, HL);
+
+    uint8_t result;
+
+    result = *dst_ptr | mHL;
+
+    // flags
+    if (result == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    cpu->F &= ~FLAG_N;
+
+    cpu->F &= ~FLAG_H;
+
+    cpu->F &= ~FLAG_C;
+
+    *dst_ptr = result;
+
+    return cycles;
+}
 uint8_t OR_A_A_0xB7(CPU* cpu){
     return OR_R8(cpu, REG_A);
 }
@@ -1410,90 +1651,654 @@ uint8_t CP_A_H_0xBC(CPU* cpu){
 uint8_t CP_A_L_0xBD(CPU* cpu){
     return CP_R8(cpu, REG_L);
 }
-uint8_t CP_A_HL_0xBE(CPU* cpu);
+uint8_t CP_A_mHL_0xBE(CPU* cpu){
+    uint8_t cycles = 8;
+
+    uint8_t* dst_ptr = &cpu->A;
+
+    uint16_t HL = get_hl(cpu);
+    uint8_t mHL = read_byte(cpu->mmu, HL);
+
+    uint8_t result;
+
+    result = *dst_ptr - mHL;
+
+    // flags
+    cpu->F |= FLAG_N;
+
+    if (result == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    if (mHL > *dst_ptr){
+        cpu->F |= FLAG_C;
+    } else {
+        cpu->F &= ~FLAG_C;
+    }
+
+    if ((*dst_ptr & 0x0F) < (mHL & 0x0F)){
+        cpu->F |= FLAG_H;
+    } else {
+        cpu->F &= ~FLAG_H;
+    }
+
+    return cycles;
+}
 uint8_t CP_A_A_0xBF(CPU* cpu){
     return CP_R8(cpu, REG_A);
 }
-uint8_t RET_NZ_0xC0(CPU* cpu);
+uint8_t RET_NZ_0xC0(CPU* cpu){
+    uint8_t cycles = 8;
+
+    if ((cpu->F & FLAG_Z) == 0){
+        cycles = 20;
+
+        uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->SP++)) | (((uint16_t)read_byte(cpu->mmu, cpu->SP++)) << 8);
+
+        cpu->PC = ret_addr;
+    }
+
+    return cycles;
+}
 uint8_t POP_BC_0xC1(CPU* cpu){
     return POP_R16(cpu, REG_BC);
 }
-uint8_t JP_NZ_A16_0xC2(CPU* cpu);
-uint8_t JP_A16_0xC3(CPU* cpu);
-uint8_t CALL_NZ_A16_0xC4(CPU* cpu);
+uint8_t JP_NZ_A16_0xC2(CPU* cpu){
+    uint8_t cycles = 12;
+
+    uint16_t offset = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+
+    if ((cpu->F & FLAG_Z) == 0){
+        cycles = 16;
+
+        cpu->PC = offset;
+    }
+
+    return cycles;
+}
+uint8_t JP_A16_0xC3(CPU* cpu){
+    uint8_t cycles = 16;
+
+    uint16_t offset = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+
+    cpu->PC = offset;
+
+    return cycles;
+}
+uint8_t CALL_NZ_A16_0xC4(CPU* cpu){
+    uint8_t cycles = 12;
+
+    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+
+    if ((cpu->F & FLAG_Z) == 0){
+        cycles = 24;
+
+        uint16_t PC = cpu->PC;
+
+        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
+        write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
+
+        cpu->PC = A16;
+    }
+
+    return cycles;
+}
 uint8_t PUSH_BC_0xC5(CPU* cpu){
     return PUSH_R16(cpu, REG_BC);
 }
-uint8_t ADD_A_N8_0xC6(CPU* cpu);
-uint8_t RST_0x00_0xC7(CPU* cpu);
-uint8_t RET_Z_0xC8(CPU* cpu);
-uint8_t RET_0xC9(CPU* cpu);
-uint8_t JP_Z_A16_0xCA(CPU* cpu);
+uint8_t ADD_A_N8_0xC6(CPU* cpu){
+    uint8_t cycles = 8;
+
+    uint8_t* dst_ptr = &cpu->A;
+
+    uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
+
+    uint16_t result;
+
+    result = *dst_ptr + N8;
+
+    // flags
+    cpu->F &= ~FLAG_N;
+
+    if ((uint8_t)result == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    if (result > 0xFF){
+        cpu->F |= FLAG_C;
+    } else {
+        cpu->F &= ~FLAG_C;
+    }
+
+    if ((*dst_ptr & 0x0F) + (N8 & 0x0F) > 0x0F){
+        cpu->F |= FLAG_H;
+    } else {
+        cpu->F &= ~FLAG_H;
+    }
+
+    *dst_ptr = (uint8_t)result;
+
+    return cycles;
+}
+uint8_t RST_0x00_0xC7(CPU* cpu){
+    return RST(cpu, 0);
+}
+uint8_t RET_Z_0xC8(CPU* cpu){
+    uint8_t cycles = 8;
+
+    if ((cpu->F & FLAG_Z) != 0){
+        cycles = 20;
+
+        uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->SP++)) | (((uint16_t)read_byte(cpu->mmu, cpu->SP++)) << 8);
+
+        cpu->PC = ret_addr;
+    }
+
+    return cycles;
+}
+uint8_t RET_0xC9(CPU* cpu){
+    uint8_t cycles = 16;
+
+    uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->SP++)) | (((uint16_t)read_byte(cpu->mmu, cpu->SP++)) << 8);
+
+    cpu->PC = ret_addr;
+
+    return cycles;
+}
+uint8_t JP_Z_A16_0xCA(CPU* cpu){
+    uint8_t cycles = 12;
+
+    uint16_t offset = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+
+    if ((cpu->F & FLAG_Z) != 0){
+        cycles = 16;
+
+        cpu->PC = offset;
+    }
+
+    return cycles;
+}
 uint8_t PREFIX_0xCB(CPU* cpu);
-uint8_t CALL_Z_A16_0xCC(CPU* cpu);
-uint8_t CALL_A16_0xCD(CPU* cpu);
-uint8_t ADC_A_N8_0xCE(CPU* cpu);
-uint8_t RST_0x08_0xCF(CPU* cpu);
-uint8_t RET_NC_0xD0(CPU* cpu);
+uint8_t CALL_Z_A16_0xCC(CPU* cpu){
+    uint8_t cycles = 12;
+
+    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+
+    if ((cpu->F & FLAG_Z) != 0){
+        cycles = 24;
+
+        uint16_t PC = cpu->PC;
+
+        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
+        write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
+
+        cpu->PC = A16;
+    }
+
+    return cycles;
+}
+uint8_t CALL_A16_0xCD(CPU* cpu){
+    uint8_t cycles = 24;
+
+    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+
+    uint16_t PC = cpu->PC;
+
+    write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
+    write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
+
+    cpu->PC = A16;
+
+    return cycles;
+}
+uint8_t ADC_A_N8_0xCE(CPU* cpu){
+    uint8_t cycles = 8;
+
+    uint8_t* dst_ptr = &cpu->A;
+
+    uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
+
+    uint16_t result;
+
+    result = *dst_ptr + N8 + ((cpu->F & FLAG_C) >> 4);
+
+    // flags
+    cpu->F &= ~FLAG_N;
+
+    if ((uint8_t)result == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    if ((*dst_ptr & 0x0F) + (N8 & 0x0F) + ((cpu->F & FLAG_C) >> 4) > 0x0F){
+        cpu->F |= FLAG_H;
+    } else {
+        cpu->F &= ~FLAG_H;
+    }
+
+    if (result > 0xFF){
+        cpu->F |= FLAG_C;
+    } else {
+        cpu->F &= ~FLAG_C;
+    }
+
+    *dst_ptr = (uint8_t) result;
+
+    return cycles;
+}
+uint8_t RST_0x08_0xCF(CPU* cpu){
+    return RST(cpu, 1);
+}
+uint8_t RET_NC_0xD0(CPU* cpu){
+    uint8_t cycles = 8;
+
+    if ((cpu->F & FLAG_C) == 0){
+        cycles = 20;
+
+        uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->SP++)) | (((uint16_t)read_byte(cpu->mmu, cpu->SP++)) << 8);
+
+        cpu->PC = ret_addr;
+    }
+
+    return cycles;
+}
 uint8_t POP_DE_0xD1(CPU* cpu){
     return POP_R16(cpu, REG_DE);
 }
-uint8_t JP_NC_A16_0xD2(CPU* cpu);
+uint8_t JP_NC_A16_0xD2(CPU* cpu){
+    uint8_t cycles = 12;
+
+    uint16_t offset = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+
+    if ((cpu->F & FLAG_C) == 0){
+        cycles = 16;
+
+        cpu->PC = offset;
+    }
+
+    return cycles;
+}
 uint8_t ILLEGAL_D3_0xD3(CPU* cpu);
-uint8_t CALL_NC_A16_0xD4(CPU* cpu);
+uint8_t CALL_NC_A16_0xD4(CPU* cpu){
+    uint8_t cycles = 12;
+
+    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+
+    if ((cpu->F & FLAG_C) == 0){
+        cycles = 24;
+
+        uint16_t PC = cpu->PC;
+
+        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
+        write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
+
+        cpu->PC = A16;
+    }
+
+    return cycles;
+}
 uint8_t PUSH_DE_0xD5(CPU* cpu){
     return PUSH_R16(cpu, REG_DE);
 }
-uint8_t SUB_A_N8_0xD6(CPU* cpu);
-uint8_t RST_0x10_0xD7(CPU* cpu);
-uint8_t RET_C_0xD8(CPU* cpu);
+uint8_t SUB_A_N8_0xD6(CPU* cpu){
+    uint8_t cycles = 8;
+
+    uint8_t* dst_ptr = &cpu->A;
+
+    uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
+
+    uint8_t result;
+
+    result = *dst_ptr - N8;
+
+    // flags
+    cpu->F |= FLAG_N;
+
+    if (result == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    if (N8 > *dst_ptr){
+        cpu->F |= FLAG_C;
+    } else {
+        cpu->F &= ~FLAG_C;
+    }
+
+    if ((*dst_ptr & 0x0F) < (N8 & 0x0F)){
+        cpu->F |= FLAG_H;
+    } else {
+        cpu->F &= ~FLAG_H;
+    }
+
+    *dst_ptr = result;
+
+    return cycles;
+}
+uint8_t RST_0x10_0xD7(CPU* cpu){
+    return RST(cpu, 2);
+}
+uint8_t RET_C_0xD8(CPU* cpu){
+    uint8_t cycles = 8;
+
+    if ((cpu->F & FLAG_C) != 0){
+        cycles = 20;
+
+        uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->SP++)) | (((uint16_t)read_byte(cpu->mmu, cpu->SP++)) << 8);
+
+        cpu->PC = ret_addr;
+    }
+
+    return cycles;
+}
 uint8_t RETI_0xD9(CPU* cpu);
-uint8_t JP_C_A16_0xDA(CPU* cpu);
-uint8_t PLACEHOLDER(CPU* cpu);
-uint8_t CALL_C_A16_0xDC(CPU* cpu);
-uint8_t PLACEHOLDER(CPU* cpu);
-uint8_t SBC_A_N8_0xDE(CPU* cpu);
-uint8_t RST_0x18_0xDF(CPU* cpu);
+uint8_t JP_C_A16_0xDA(CPU* cpu){
+    uint8_t cycles = 12;
+
+    uint16_t offset = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+
+    if ((cpu->F & FLAG_C) != 0){
+        cycles = 16;
+
+        cpu->PC = offset;
+    }
+
+    return cycles;
+}
+uint8_t CALL_C_A16_0xDC(CPU* cpu){
+    uint8_t cycles = 12;
+
+    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+
+    if ((cpu->F & FLAG_C) != 0){
+        cycles = 24;
+
+        uint16_t PC = cpu->PC;
+
+        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
+        write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
+
+        cpu->PC = A16;
+    }
+
+    return cycles;
+}
+uint8_t SBC_A_N8_0xDE(CPU* cpu){
+    uint8_t cycles = 8;
+
+    uint8_t* dst_ptr = &cpu->A;
+
+    uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
+
+    uint8_t result;
+
+    result = *dst_ptr - N8 - ((cpu->F & FLAG_C) >> 4);
+
+    // flags
+    cpu->F |= FLAG_N;
+
+    if (result == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    if ((*dst_ptr & 0x0F) < (N8 & 0x0F) + ((cpu->F & FLAG_C) >> 4)){
+        cpu->F |= FLAG_H;
+    } else {
+        cpu->F &= ~FLAG_H;
+    }
+
+    if ((uint16_t)N8 + ((cpu->F & FLAG_C) >> 4) > *dst_ptr){
+        cpu->F |= FLAG_C;
+    } else {
+        cpu->F &= ~FLAG_C;
+    }
+
+    *dst_ptr = result;
+
+    return cycles;
+}
+uint8_t RST_0x18_0xDF(CPU* cpu){
+    return RST(cpu, 3);
+}
 uint8_t LDH_A8_A_0xE0(CPU* cpu);
 uint8_t POP_HL_0xE1(CPU* cpu){
     return POP_R16(cpu, REG_HL);
 }
 uint8_t LDH_C_A_0xE2(CPU* cpu);
-uint8_t PLACEHOLDER(CPU* cpu);
-uint8_t PLACEHOLDER(CPU* cpu);
 uint8_t PUSH_HL_0xE5(CPU* cpu){
     return PUSH_R16(cpu, REG_HL);
 }
-uint8_t AND_A_N8_0xE6(CPU* cpu);
-uint8_t RST_0x20_0xE7(CPU* cpu);
-uint8_t ADD_SP_E8_0xE8(CPU* cpu);
-uint8_t JP_HL_0xE9(CPU* cpu);
+uint8_t AND_A_N8_0xE6(CPU* cpu){
+    uint8_t cycles = 8;
+
+    uint8_t* dst_ptr = &cpu->A;
+
+    uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
+
+    uint8_t result;
+
+    result = *dst_ptr & N8;
+
+    // flags
+    if (result == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    cpu->F &= ~FLAG_N;
+
+    cpu->F |= FLAG_H;
+
+    cpu->F &= ~FLAG_C;
+
+    *dst_ptr = result;
+
+    return cycles;
+}
+uint8_t RST_0x20_0xE7(CPU* cpu){
+    return RST(cpu, 4);
+}
+uint8_t ADD_SP_E8_0xE8(CPU* cpu){
+    uint8_t cycles = 16;
+
+    uint16_t SP = cpu->SP;
+
+    int8_t offset = (int8_t)read_byte(cpu->mmu, cpu->PC++);
+
+    uint16_t result = SP + offset;
+
+    // flags
+    cpu->F &= ~FLAG_N;
+
+    cpu->F &= ~FLAG_Z;
+
+    if ((SP & 0x00FF) + ((uint8_t)offset) > 0xFF){
+        cpu->F |= FLAG_C;
+    } else {
+        cpu->F &= ~FLAG_C;
+    }
+
+    if ((SP & 0x000F) + ((uint8_t)offset & 0x0F) > 0x0F){
+        cpu->F |= FLAG_H;
+    } else {
+        cpu->F &= ~FLAG_H;
+    }
+
+    cpu->SP = result;
+
+    return cycles;
+}
+uint8_t JP_HL_0xE9(CPU* cpu){
+    uint8_t cycles = 4;
+
+    uint16_t HL = get_hl(cpu);
+
+    cpu->PC = HL;
+
+    return cycles;
+}
 uint8_t LD_A16_A_0xEA(CPU* cpu);
-uint8_t PLACEHOLDER(CPU* cpu);
-uint8_t PLACEHOLDER(CPU* cpu);
-uint8_t PLACEHOLDER(CPU* cpu);
-uint8_t XOR_A_N8_0xEE(CPU* cpu);
-uint8_t RST_0x28_0xEF(CPU* cpu);
+uint8_t XOR_A_N8_0xEE(CPU* cpu){
+    uint8_t cycles = 8;
+
+    uint8_t* dst_ptr = &cpu->A;
+
+    uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
+
+    uint8_t result;
+
+    result = *dst_ptr ^ N8;
+
+    // flags
+    if (result == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    cpu->F &= ~FLAG_N;
+
+    cpu->F &= ~FLAG_H;
+
+    cpu->F &= ~FLAG_C;
+
+    *dst_ptr = result;
+
+    return cycles;
+}
+uint8_t RST_0x28_0xEF(CPU* cpu){
+    return RST(cpu, 5);
+}
 uint8_t LDH_A_A8_0xF0(CPU* cpu);
 uint8_t POP_AF_0xF1(CPU* cpu){
     return POP_R16(cpu, REG_AF);
 }
 uint8_t LDH_A_C_0xF2(CPU* cpu);
 uint8_t DI_0xF3(CPU* cpu);
-uint8_t PLACEHOLDER(CPU* cpu);
 uint8_t PUSH_AF_0xF5(CPU* cpu){
     return PUSH_R16(cpu, REG_AF);
 }
-uint8_t OR_A_N8_0xF6(CPU* cpu);
-uint8_t RST_0x30_0xF7(CPU* cpu);
-uint8_t LD_HL_SP_E8_0xF8(CPU* cpu);
-uint8_t LD_SP_HL_0xF9(CPU* cpu);
+uint8_t OR_A_N8_0xF6(CPU* cpu){
+    uint8_t cycles = 8;
+
+    uint8_t* dst_ptr = &cpu->A;
+
+    uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
+
+    uint8_t result;
+
+    result = *dst_ptr | N8;
+
+    // flags
+    if (result == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    cpu->F &= ~FLAG_N;
+
+    cpu->F &= ~FLAG_H;
+
+    cpu->F &= ~FLAG_C;
+
+    *dst_ptr = result;
+
+    return cycles;
+}
+uint8_t RST_0x30_0xF7(CPU* cpu){
+    return RST(cpu, 6);
+}
+uint8_t LD_HL_SP_E8_0xF8(CPU* cpu){
+    uint8_t cycles = 12;
+
+    uint16_t SP = cpu->SP;
+    int8_t E8 = (int8_t)read_byte(cpu->mmu, cpu->PC++);
+
+    uint16_t result = SP + E8;
+
+    // flags
+    cpu->F &= ~FLAG_Z;
+
+    cpu->F &= ~FLAG_N;
+
+    if ((SP & 0x00FF) + ((uint8_t)E8) > 0xFF){
+        cpu->F |= FLAG_C;
+    } else {
+        cpu->F &= ~FLAG_C;
+    }
+
+    if ((SP & 0x000F) + ((uint8_t)E8 & 0x0F) > 0x0F){
+        cpu->F |= FLAG_H;
+    } else {
+        cpu->F &= ~FLAG_H;
+    }
+
+    cpu->L = (uint8_t)result;
+    cpu->H = (uint8_t)((result & 0xFF00) >> 8);
+
+    return cycles;
+}
+uint8_t LD_SP_HL_0xF9(CPU* cpu){
+    uint8_t cycles = 8;
+
+    uint16_t HL = get_hl(cpu);
+
+    cpu->SP = HL;
+
+    return cycles;
+}
 uint8_t LD_A_A16_0xFA(CPU* cpu);
 uint8_t EI_0xFB(CPU* cpu);
-uint8_t PLACEHOLDER(CPU* cpu);
-uint8_t PLACEHOLDER(CPU* cpu);
-uint8_t CP_A_N8_0xFE(CPU* cpu);
-uint8_t RST_0x38_0xFF(CPU* cpu);
+uint8_t CP_A_N8_0xFE(CPU* cpu){
+    uint8_t cycles = 8;
+
+    uint8_t* dst_ptr = &cpu->A;
+
+    uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
+
+    uint8_t result;
+
+    result = *dst_ptr - N8;
+
+    // flags
+    cpu->F |= FLAG_N;
+
+    if (result == 0){
+        cpu->F |= FLAG_Z;
+    } else {
+        cpu->F &= ~FLAG_Z;
+    }
+
+    if (N8 > *dst_ptr){
+        cpu->F |= FLAG_C;
+    } else {
+        cpu->F &= ~FLAG_C;
+    }
+
+    if ((*dst_ptr & 0x0F) < (N8 & 0x0F)){
+        cpu->F |= FLAG_H;
+    } else {
+        cpu->F &= ~FLAG_H;
+    }
+
+    return cycles;
+}
+uint8_t RST_0x38_0xFF(CPU* cpu){
+    return RST(cpu, 7);
+}
+uint8_t PLACEHOLDER(CPU* cpu){ // fix later maybe?
+    NOP_0x00(cpu);
+}
 
 // CB Prefix
 uint8_t RLC_B_0x00(CPU* cpu);
