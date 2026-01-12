@@ -59,6 +59,21 @@ uint8_t POP_R16(CPU* cpu, reg16_t src);
 uint8_t PUSH_R16(CPU* cpu, reg16_t src);
 uint8_t RST(CPU* cpu, uint8_t bit);
 
+uint8_t RLC_R8(CPU* cpu, reg8_t dst);
+uint8_t RRC_R8(CPU* cpu, reg8_t dst);
+uint8_t RL_R8(CPU* cpu, reg8_t dst);
+uint8_t RR_R8(CPU* cpu, reg8_t dst);
+uint8_t SLA_R8(CPU* cpu, reg8_t dst);
+uint8_t SRA_R8(CPU* cpu, reg8_t dst);
+uint8_t SWAP_R8(CPU* cpu, reg8_t dst);
+uint8_t SRL_R8(CPU* cpu, reg8_t dst);
+uint8_t BIT_R8(CPU* cpu, uint8_t bit, reg8_t src);
+uint8_t BIT_mHL(CPU* cpu, uint8_t bit);
+uint8_t RES_R8(CPU* cpu, uint8_t bit, reg8_t dst);
+uint8_t RES_mHL(CPU* cpu, uint8_t bit);
+uint8_t SET_R8(CPU* cpu, uint8_t bit, reg8_t dst);
+uint8_t SET_mHL(CPU* cpu, uint8_t bit);
+
 // No Prefix
 uint8_t NOP_0x00(CPU* cpu);
 uint8_t LD_BC_N16_0x01(CPU* cpu);
