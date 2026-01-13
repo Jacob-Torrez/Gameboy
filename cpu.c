@@ -1001,7 +1001,15 @@ uint8_t RRCA_0x0F(CPU* cpu){
 
     return cycles;
 }
-uint8_t STOP_N8_0x10(CPU* cpu);
+uint8_t STOP_N8_0x10(CPU* cpu){
+    uint8_t cycles = 4;
+
+    cpu->PC += 1;
+
+    cpu->stopped = 1;
+
+    return cycles;
+}
 uint8_t LD_DE_N16_0x11(CPU* cpu){
     return LD_R16_N16(cpu, REG_DE);
 }
@@ -1547,7 +1555,13 @@ uint8_t LD_mHL_H_0x74(CPU* cpu){
 uint8_t LD_mHL_L_0x75(CPU* cpu){
     return LD_mR16_R8(cpu, REG_HL, REG_L);
 }
-uint8_t HALT_0x76(CPU* cpu);
+uint8_t HALT_0x76(CPU* cpu){
+    uint8_t cycles = 4;
+
+    cpu->halted = 1;
+
+    return cycles;
+}
 uint8_t LD_mHL_A_0x77(CPU* cpu){
     return LD_mR16_R8(cpu, REG_HL, REG_A);
 }
@@ -2146,7 +2160,7 @@ uint8_t JP_Z_A16_0xCA(CPU* cpu){
 
     return cycles;
 }
-uint8_t PREFIX_0xCB(CPU* cpu);
+uint8_t PREFIX_0xCB(CPU* cpu); // TODO
 uint8_t CALL_Z_A16_0xCC(CPU* cpu){
     uint8_t cycles = 12;
 
@@ -2320,7 +2334,17 @@ uint8_t RET_C_0xD8(CPU* cpu){
 
     return cycles;
 }
-uint8_t RETI_0xD9(CPU* cpu);
+uint8_t RETI_0xD9(CPU* cpu){
+    uint8_t cycles = 16;
+
+    uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->SP++)) | (((uint16_t)read_byte(cpu->mmu, cpu->SP++)) << 8);
+
+    cpu->PC = ret_addr;
+
+    cpu->ime = 1;
+
+    return cycles;
+}
 uint8_t JP_C_A16_0xDA(CPU* cpu){
     uint8_t cycles = 12;
 
@@ -2556,7 +2580,13 @@ uint8_t LDH_A_mC_0xF2(CPU* cpu){
 
     return cycles;
 }
-uint8_t DI_0xF3(CPU* cpu);
+uint8_t DI_0xF3(CPU* cpu){
+    uint8_t cycles = 4;
+
+    cpu->ime = 0;
+
+    return cycles;
+}
 uint8_t PUSH_AF_0xF5(CPU* cpu){
     return PUSH_R16(cpu, REG_AF);
 }
@@ -2641,7 +2671,13 @@ uint8_t LD_A_mA16_0xFA(CPU* cpu){
 
     return cycles;
 }
-uint8_t EI_0xFB(CPU* cpu);
+uint8_t EI_0xFB(CPU* cpu){
+    uint8_t cycles = 4;
+
+    cpu->set_ime_next = 1;
+
+    return cycles;
+}
 uint8_t CP_A_N8_0xFE(CPU* cpu){
     uint8_t cycles = 8;
 
@@ -2679,8 +2715,8 @@ uint8_t CP_A_N8_0xFE(CPU* cpu){
 uint8_t RST_0x38_0xFF(CPU* cpu){
     return RST(cpu, 7);
 }
-uint8_t PLACEHOLDER(CPU* cpu){ // fix later maybe?
-    NOP_0x00(cpu);
+uint8_t PLACEHOLDER(CPU* cpu){ // TODO
+    return NOP_0x00(cpu);
 }
 
 // CB Prefix

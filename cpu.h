@@ -1,4 +1,4 @@
-#ifndef CPU_U
+#ifndef CPU_H
 #define CPU_H
 
 #include <stdint.h>
@@ -20,6 +20,13 @@ typedef enum {
 typedef struct {
     uint8_t A, B, C, D, E, H, L, F;
     uint16_t SP, PC;
+
+    uint8_t ime;
+    uint8_t halted;
+    uint8_t stopped;
+
+    uint8_t set_ime_next;
+
     uint16_t clock;
     MMU* mmu;
 } CPU;
