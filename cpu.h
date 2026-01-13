@@ -32,12 +32,12 @@ typedef struct {
 } CPU;
 
 // lookup tables
-int (*opcode_table[256])(CPU* cpu);
-int (*cb_opcode_table[256])(CPU* cpu);
+uint8_t (*opcode_table[256])(CPU* cpu);
+uint8_t (*cb_opcode_table[256])(CPU* cpu);
 
 // utility
 void cpu_reset(CPU* cpu);
-int cpu_step(CPU* cpu);
+uint8_t cpu_step(CPU* cpu);
 void cpu_execute(CPU* cpu);
 
 uint16_t get_hl(CPU*cpu);
