@@ -36,7 +36,7 @@ uint8_t (*opcode_table[256])(CPU* cpu);
 uint8_t (*cb_opcode_table[256])(CPU* cpu);
 
 // utility
-void cpu_reset(CPU* cpu);
+void cpu_clear(CPU* cpu);
 uint8_t cpu_step(CPU* cpu);
 void cpu_execute(CPU* cpu);
 

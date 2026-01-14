@@ -1,6 +1,6 @@
 #include "cpu.h"
 
-void cpu_reset(CPU* cpu){
+void cpu_clear(CPU* cpu){
     cpu->PC = 0x0000;
     cpu->SP = 0x0000;
     cpu->A = 0x00;
