@@ -27,7 +27,7 @@ typedef struct {
 
     uint8_t set_ime_next;
 
-    uint16_t clock;
+    uint64_t clock;
     MMU* mmu;
 } CPU;
 
@@ -38,7 +38,6 @@ uint8_t (*cb_opcode_table[256])(CPU* cpu);
 // utility
 void cpu_clear(CPU* cpu);
 uint8_t cpu_step(CPU* cpu);
-void cpu_execute(CPU* cpu);
 
 uint16_t get_hl(CPU*cpu);
 uint8_t* get_r8_adr(CPU* cpu, reg8_t reg);

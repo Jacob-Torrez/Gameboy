@@ -4,7 +4,7 @@ uint8_t read_byte(MMU* mmu, uint16_t addr){
     return mmu->memory[addr];
 }
 
-void write_byte(MMU* mmu, uint16_t addr, uint8_t val){
+void write_byte(MMU* mmu, uint16_t addr, uint8_t val){ // TODO
     if (addr >= 0x0000 && addr <= 0x7FFF){ // ROM
         return;
     }
@@ -18,6 +18,12 @@ void write_byte(MMU* mmu, uint16_t addr, uint8_t val){
         mmu->memory[addr - 0x2000] = val;
     }
     mmu->memory[addr] = val;
+}
+
+void request_interrupt(MMU* mmu, interrupt_t interrupt){
+    uint8_t IF = read_byte(mmu, 0xFF0F);
+    IF |= 1 << interrupt;
+    write_byte(mmu, 0xFF0F, IF);
 }
 
 void read_ROM(MMU* mmu, const char* filename){
