@@ -24,15 +24,19 @@ typedef struct {
     mode_t mode; // 0: HBlank, 1: VBlank, 2: OAM, 3: Draw
     uint8_t mode_cycles;
     uint8_t LY;
+    uint8_t window_line_counter;
 
     uint32_t frame_buffer[160 * 144];
     SpriteAttributes sprite_buffer[10];
     uint8_t sprite_count;
 
+    uint8_t enabled;
+
     MMU* mmu;
 } PPU;
 
 void ppu_step(PPU* ppu, uint8_t cycles);
+void ppu_reset(PPU* ppu);
 
 void ppu_init(PPU* ppu);
 void ppu_destroy(PPU* ppu);

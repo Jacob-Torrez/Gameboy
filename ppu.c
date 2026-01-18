@@ -1,6 +1,16 @@
 #include "ppu.h"
 
 void ppu_step(PPU* ppu, uint8_t cycles){
+    uint8_t LCD_en = read_byte(ppu->mmu, 0xFF40) >> 7; // 0: off 1: on (PPU/LCD)
+    if (LCD_en == 0){
+        if (ppu->enabled == 1){
+            ppu_reset(ppu);
+            ppu->enabled = 0;
+        }
+        return;
+    }
+    ppu->enabled = 1;
+
     ppu->mode_cycles += cycles;
 
     uint8_t cycles_needed = get_cycles_needed(ppu->mode);
@@ -27,6 +37,7 @@ void ppu_step(PPU* ppu, uint8_t cycles){
                 set_ly(ppu);
 
                 if (ppu->LY == 0){
+                    ppu->window_line_counter = 0;
                     ppu->mode = MODE_OAM;
                     set_stat_mode(ppu);
                 }
@@ -60,6 +71,8 @@ void ppu_init(PPU* ppu){
     ppu->mode = 2;
     ppu->mode_cycles = 0;
     ppu->LY = 0;
+    ppu->enabled = 1;
+    ppu->window_line_counter = 0;
 }
 
 void ppu_destroy(PPU* ppu){
@@ -90,6 +103,56 @@ void scan_oam(PPU* ppu){
             }
         }
     }
+}
+
+void render_scanline(PPU* ppu, uint8_t LY){
+    uint8_t SCY = read_byte(ppu->mmu, 0xFF42); // Background viewport Y
+    uint8_t SCX = read_byte(ppu->mmu, 0xFF43); // Background viewport X
+    uint8_t WY = read_byte(ppu->mmu, 0xFF4A); // Window Y
+    uint8_t WX = read_byte(ppu->mmu, 0xFF4B); // Window X + 7
+            WX = (WX < 7) ? 7 : WX;
+    uint8_t LCDC = read_byte(ppu->mmu, 0xFF40); // LCD control
+
+    uint8_t bg_tile_map = (LCDC & 0x08) >> 3; // 1: 9C00-9FFF
+    uint8_t w_tile_map = (LCDC & 0x40) >> 6;  // 0: 9800-9BFF
+    
+    uint8_t tile_data = (LCDC & 0x10) >> 4; // 0: 8800-97FF 1: 8000-8FFF
+
+    uint8_t obj_en = (LCDC & 0x02) >> 1; // 1: on 0: off
+    uint8_t obj_size = (LCDC & 0x04) >> 2; // 0: 8x8 1: 8x16 
+
+    uint8_t bg_en = (LCDC & 0x01); // 1: on 0: off
+    uint8_t w_en = (LCDC & 0x01) & ((LCDC & 0x20) >> 5); // 1: on 0: off
+
+    uint8_t window_used = 0;
+    for (int i = 0; i < 160; i++){
+        uint32_t w_pixel;
+        uint32_t bg_pixel;
+        uint32_t obj_pixel;
+        if (w_en == 1 && WY <= LY && (WX - 7) <= i){
+            window_used = 1;
+            uint16_t tile_map_addr = 0x9800 | (w_tile_map << 10) | ((ppu->window_line_counter >> 3) << 5) | ((i - (WX - 7)) >> 3);
+            uint8_t tile_id = read_byte(ppu->mmu, tile_map_addr);
+            uint16_t tile_addr;
+            if (tile_data == 1){
+                tile_addr = 0x8000 + ((uint16_t)tile_id << 4);
+            } else {
+                tile_addr = 0x9000 + ((int8_t)tile_id << 4);
+            }
+            tile_addr = tile_addr + (LY % 8);
+            uint8_t lo = read_byte(ppu->mmu, tile_addr);
+            uint8_t hi = read_byte(ppu->mmu, tile_addr + 1);
+            w_pixel = ((hi & (1 << (i % 8))) >> (i % 8)) << 1 | ((lo & (1 << (i % 8))) >> (1 % 8));
+        }
+        if (bg_en == 1){
+
+        }
+        if (obj_en == 1){
+
+        }
+    }
+
+    ppu->window_line_counter += window_used;
 }
 
 void set_stat_mode(PPU* ppu){
