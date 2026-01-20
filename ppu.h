@@ -13,7 +13,6 @@ typedef struct{
     uint8_t x;
     uint8_t tile_index;
     uint8_t attributes;
-
 } SpriteAttributes;
 
 typedef struct {
