@@ -8,6 +8,10 @@ typedef enum {
     MODE_HBLANK, MODE_VBLANK, MODE_OAM, MODE_DRAW
 } mode_t;
 
+typedef enum {
+    COLOR_WHITE, COLOR_LGRAY, COLOR_DGRAY, COLOR_BLACK
+} color_t;
+
 typedef struct{
     uint8_t y;
     uint8_t x;
@@ -47,5 +51,6 @@ void set_stat_mode(PPU* ppu);
 void set_ly(PPU* ppu);
 
 uint8_t get_cycles_needed(uint8_t mode);
+uint32_t get_color(color_t color);
 
 #endif
