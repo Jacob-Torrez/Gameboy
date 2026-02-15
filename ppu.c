@@ -233,7 +233,7 @@ void set_ly(PPU* ppu){
     uint8_t LYC = read_byte(ppu->mmu, 0xFF45);
     uint8_t stat = read_byte(ppu->mmu, 0xFF41);
 
-    stat &= ~(1 << 2);
+    stat &= ~0x4;
     stat |= ((LYC == LY) ? 1 : 0) << 2;
 
     write_byte(ppu->mmu, 0xFF41, stat);

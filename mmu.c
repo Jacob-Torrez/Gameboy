@@ -1,6 +1,6 @@
 #include "mmu.h"
 
-uint8_t read_byte(MMU* mmu, uint16_t addr){
+uint8_t read_byte(MMU* mmu, uint16_t addr){ // TODO
     return mmu->memory[addr];
 }
 

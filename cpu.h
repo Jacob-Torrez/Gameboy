@@ -39,6 +39,8 @@ uint8_t (*cb_opcode_table[256])(CPU* cpu);
 void cpu_clear(CPU* cpu);
 uint8_t cpu_step(CPU* cpu);
 
+uint8_t interrupt_handler(CPU* cpu);
+
 uint16_t get_hl(CPU*cpu);
 uint8_t* get_r8_adr(CPU* cpu, reg8_t reg);
 

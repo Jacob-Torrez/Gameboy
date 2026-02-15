@@ -22,6 +22,59 @@ uint8_t cpu_step(CPU* cpu){
     return instr(cpu);
 }
 
+uint8_t interrupt_handler(CPU* cpu){
+    uint8_t cycles = 0;
+
+    uint8_t IE = read_byte(cpu->mmu, 0xFFFF);
+    uint8_t IF = read_byte(cpu->mmu, 0xFF0F);
+    uint8_t interrupt_mask = IE & IF;
+
+    if (cpu->halted == 1 && interrupt_mask != 0){
+        cpu->halted = 0;
+        if (cpu->ime == 0){return 1;} // 1 to indicate halt bug
+    }
+
+    if (cpu->ime == 0 || cpu->halted == 1){return cycles;}
+
+    if (interrupt_mask != 0){ // Interrupt requested
+        cycles = 20;
+        cpu->ime = 0; // Disable interrupts
+
+        uint16_t addr;
+
+        if ((interrupt_mask & 0x1) != 0){ // VBlank
+            write_byte(cpu->mmu, 0xFF0F, IF & ~0x1);
+            addr = 0x0040;
+        }
+        else if ((interrupt_mask & 0x2) != 0){ // LCD
+            write_byte(cpu->mmu, 0xFF0F, IF & ~0x2);
+            addr = 0x0048;
+        }
+        else if ((interrupt_mask & 0x4) != 0){ // Timer
+            write_byte(cpu->mmu, 0xFF0F, IF & ~0x4);
+            addr = 0x0050;
+        }
+        else if ((interrupt_mask & 0x8) != 0){ // Serial
+            write_byte(cpu->mmu, 0xFF0F, IF & ~0x8);
+            addr = 0x0058;
+        }
+        else if ((interrupt_mask & 0x10) != 0){ // Joypad
+            write_byte(cpu->mmu, 0xFF0F, IF & ~0x10);
+            addr = 0x0060;
+        }
+
+        // call to interrupt service
+        uint16_t PC = cpu->PC;
+
+        write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
+        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
+
+        cpu->PC = addr;
+    } 
+
+    return cycles;
+}
+
 // utilities
 uint8_t* get_r8_adr(CPU* cpu, reg8_t reg){
     switch (reg){
@@ -570,8 +623,8 @@ uint8_t RST(CPU* cpu, uint8_t vec){
 
     uint16_t PC = cpu->PC;
 
-    write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
     write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
+    write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
 
     cpu->PC = 0x0008 * vec;
 
@@ -2083,8 +2136,8 @@ uint8_t CALL_NZ_A16_0xC4(CPU* cpu){
 
         uint16_t PC = cpu->PC;
 
-        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
         write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
+        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
 
         cpu->PC = A16;
     }
@@ -2185,8 +2238,8 @@ uint8_t CALL_Z_A16_0xCC(CPU* cpu){
 
         uint16_t PC = cpu->PC;
 
-        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
         write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
+        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
 
         cpu->PC = A16;
     }
@@ -2200,8 +2253,8 @@ uint8_t CALL_A16_0xCD(CPU* cpu){
 
     uint16_t PC = cpu->PC;
 
-    write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
     write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
+    write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
 
     cpu->PC = A16;
 
@@ -2285,8 +2338,8 @@ uint8_t CALL_NC_A16_0xD4(CPU* cpu){
 
         uint16_t PC = cpu->PC;
 
-        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
         write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
+        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
 
         cpu->PC = A16;
     }
@@ -2382,8 +2435,8 @@ uint8_t CALL_C_A16_0xDC(CPU* cpu){
 
         uint16_t PC = cpu->PC;
 
-        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
         write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
+        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
 
         cpu->PC = A16;
     }
