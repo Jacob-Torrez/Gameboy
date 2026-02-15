@@ -1,0 +1,9 @@
+1. timer/divider
+2. joypad
+3. finish mmu logic
+4. dma
+5. power up sequence
+6. main exeuction loop
+7. halt/stop
+8. audio
+9. mbcs
