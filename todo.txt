@@ -1,9 +1,8 @@
-1. timer/divider
 2. joypad
-3. finish mmu logic
+3. finish mmu logic (timers)
 4. dma
 5. power up sequence
-6. main exeuction loop
+6. main exeuction loop (HALT BUG, LY==LYC, timer_step delay)
 7. halt/stop
 8. audio
 9. mbcs
