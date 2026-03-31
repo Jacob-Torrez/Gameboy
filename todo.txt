@@ -2,7 +2,7 @@
 3. finish mmu logic (timers)
 4. dma
 5. power up sequence
-6. main exeuction loop (HALT BUG, LY==LYC, timer_step delay)
+6. main exeuction loop (HALT BUG, LY==LYC, timer_step delay, JOYPAD, restructure to allow modules to write directly to mem? maybe 2 sets of MMU functions, one for user and one for "kernel")
 7. halt/stop
 8. audio
 9. mbcs
