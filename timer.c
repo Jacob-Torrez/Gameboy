@@ -10,7 +10,7 @@ void timer_reset_sys_counter(TIMER* timer){
     timer->sys_counter = 0;
 }
 
-uint8_t timer_step(TIMER* timer, uint8_t cycles){
+uint8_t timer_step(TIMER* timer, uint8_t cycles){ // TODO: TIMA DELAY
     uint8_t ret_cycles = 0;
 
     uint8_t tac = read_byte(timer->mmu, 0xFF07);
