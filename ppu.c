@@ -1,7 +1,7 @@
 #include "ppu.h"
 
 void ppu_step(PPU* ppu, uint8_t cycles){
-    uint8_t LCD_en = read_byte(ppu->mmu, 0xFF40) >> 7; // 0: off 1: on (PPU/LCD)
+    uint8_t LCD_en = ppu->lcdc >> 7; // 0: off 1: on (PPU/LCD)
     if (LCD_en == 0){
         if (ppu->enabled == 1){
             ppu_reset(ppu);
@@ -20,10 +20,10 @@ void ppu_step(PPU* ppu, uint8_t cycles){
 
         switch (ppu->mode){
             case MODE_HBLANK:
-                ppu->LY++;
+                ppu->ly++;
                 set_ly(ppu);
 
-                if (ppu->LY == 144){
+                if (ppu->ly == 144){
                     ppu->mode = MODE_VBLANK;
                     request_interrupt(ppu->mmu, INT_VBLANK);
                 } else {
@@ -33,10 +33,10 @@ void ppu_step(PPU* ppu, uint8_t cycles){
 
                 break;
             case MODE_VBLANK:
-                ppu->LY = (ppu->LY + 1) % 154;
+                ppu->ly = (ppu->ly + 1) % 154;
                 set_ly(ppu);
 
-                if (ppu->LY == 0){
+                if (ppu->ly == 0){
                     ppu->window_line_counter = 0;
                     ppu->mode = MODE_OAM;
                     set_stat_mode(ppu);
@@ -51,7 +51,7 @@ void ppu_step(PPU* ppu, uint8_t cycles){
 
                 break;
             case MODE_DRAW:
-                render_scaline(ppu, ppu->LY);
+                render_scaline(ppu);
 
                 ppu->mode = MODE_HBLANK;
                 set_stat_mode(ppu);
@@ -70,9 +70,20 @@ void ppu_init(PPU* ppu){
 
     ppu->mode = 2;
     ppu->mode_cycles = 0;
-    ppu->LY = 0;
     ppu->enabled = 1;
     ppu->window_line_counter = 0;
+    ppu->sprite_count = 0;
+
+    ppu->lcdc = 0;
+    ppu->stat = 0;
+    ppu->scy = 0;
+    ppu->scx = 0;
+    ppu->ly = 0;
+    ppu->lyc = 0;
+    ppu->obp0 = 0;
+    ppu->obp1 = 0;
+    ppu->wy = 0;
+    ppu->wx = 0;
 }
 
 void ppu_destroy(PPU* ppu){
@@ -87,16 +98,16 @@ void ppu_destroy(PPU* ppu){
 void scan_oam(PPU* ppu){
     ppu->sprite_count = 0;
 
-    uint8_t sprite_height = ((read_byte(ppu->mmu, 0xFF40) & (1 << 2)) >> 2) ? 16 : 8; // LCDC bit 2
-    uint8_t LY = ppu->LY;
+    uint8_t sprite_height = ((ppu->lcdc & (1 << 2)) >> 2) ? 16 : 8; // lcdc bit 2
+    uint8_t ly = ppu->ly;
 
     for (int i = 0; i < 160; i+=4){
         if (ppu->sprite_count < 10){
-            uint8_t y = read_byte(ppu->mmu, 0xFE00 + i);
-            if ((int16_t)LY >= (int16_t)y - 16 && (int16_t)LY < (int16_t)y - 16 + sprite_height){
-                uint8_t x = read_byte(ppu->mmu, 0xFE00 + i + 1);
-                uint8_t tile_index = read_byte(ppu->mmu, 0xFE00 + i + 2);
-                uint8_t attributes = read_byte(ppu->mmu, 0xFE00 + i + 3);
+            uint8_t y = ppu->oam[i];
+            if ((int16_t)ly >= (int16_t)y - 16 && (int16_t)ly < (int16_t)y - 16 + sprite_height){
+                uint8_t x = ppu->oam[i + 1];
+                uint8_t tile_index = ppu->oam[i + 2];
+                uint8_t attributes = ppu->oam[i + 3];
                 
                 ppu->sprite_buffer[ppu->sprite_count] = (SpriteAttributes){y, x, tile_index, attributes};
                 ppu->sprite_count++;
@@ -105,36 +116,35 @@ void scan_oam(PPU* ppu){
     }
 }
 
-void render_scanline(PPU* ppu, uint8_t LY){
-    uint8_t SCY = read_byte(ppu->mmu, 0xFF42); // Background viewport Y
-    uint8_t SCX = read_byte(ppu->mmu, 0xFF43); // Background viewport X
-    uint8_t WY = read_byte(ppu->mmu, 0xFF4A); // Window Y
-    uint8_t WX = read_byte(ppu->mmu, 0xFF4B); // Window X + 7
-            WX = (WX < 7) ? 7 : WX;
-    uint8_t LCDC = read_byte(ppu->mmu, 0xFF40); // LCD control
+void render_scanline(PPU* ppu){
+    uint8_t scy = ppu->scy; // Background viewport Y
+    uint8_t scx = ppu->scx; // Background viewport X
+    uint8_t wy = ppu->wy; // Window Y
+    uint8_t wx = ppu->wx; // Window X + 7
+            wx = (wx < 7) ? 7 : wx;
 
-    uint8_t BGP = read_byte(ppu->mmu, 0xFF47); // Background Palette
-    uint8_t OBP0 = read_byte(ppu->mmu, 0xFF48); // Object Palette 0
-    uint8_t OBP1 = read_byte(ppu->mmu, 0xFF49); // Object Pallete 1
+    uint8_t bgp = ppu->bgp; // Background Palette
+    uint8_t obp0 = ppu->obp0; // Object Palette 0
+    uint8_t obp1 = ppu->obp1; // Object Pallete 1
 
-    uint8_t bg_tile_map = (LCDC & 0x08) >> 3; // 1: 9C00-9FFF
-    uint8_t w_tile_map = (LCDC & 0x40) >> 6;  // 0: 9800-9BFF
+    uint8_t bg_tile_map = (ppu->lcdc & 0x08) >> 3; // 1: 9C00-9FFF
+    uint8_t w_tile_map = (ppu->lcdc & 0x40) >> 6;  // 0: 9800-9BFF
     
-    uint8_t tile_data = (LCDC & 0x10) >> 4; // 0: 8800-97FF 1: 8000-8FFF
+    uint8_t tile_data = (ppu->lcdc & 0x10) >> 4; // 0: 8800-97FF 1: 8000-8FFF
 
-    uint8_t obj_en = (LCDC & 0x02) >> 1; // 1: on 0: off
-    uint8_t obj_size = (LCDC & 0x04) >> 2; // 0: 8x8 1: 8x16
+    uint8_t obj_en = (ppu->lcdc & 0x02) >> 1; // 1: on 0: off
+    uint8_t obj_size = (ppu->lcdc & 0x04) >> 2; // 0: 8x8 1: 8x16
 
-    uint8_t bg_en = (LCDC & 0x01); // 1: on 0: off
-    uint8_t w_en = (LCDC & 0x01) & ((LCDC & 0x20) >> 5); // 1: on 0: off
+    uint8_t bg_en = (ppu->lcdc & 0x01); // 1: on 0: off
+    uint8_t w_en = (ppu->lcdc & 0x01) & ((ppu->lcdc & 0x20) >> 5); // 1: on 0: off
 
     uint8_t window_used = 0;
     for (int i = 0; i < 160; i++){
         uint32_t bgw_pixel;
         uint32_t obj_pixel;
-        if (w_en == 1 && WY <= LY && (WX - 7) <= i){
+        if (w_en == 1 && wy <= ppu->ly && (wx - 7) <= i){
             window_used = 1;
-            uint16_t tile_map_addr = 0x9800 | (w_tile_map << 10) | ((ppu->window_line_counter >> 3) << 5) | ((i - (WX - 7)) >> 3); // 0b10011(tilemap)(Y)(X)
+            uint16_t tile_map_addr = 0x9800 | (w_tile_map << 10) | ((ppu->window_line_counter >> 3) << 5) | ((i - (wx - 7)) >> 3); // 0b10011(tilemap)(Y)(X)
             uint8_t tile_id = read_byte(ppu->mmu, tile_map_addr);
             uint16_t tile_addr;
             if (tile_data == 1){
@@ -145,14 +155,14 @@ void render_scanline(PPU* ppu, uint8_t LY){
             tile_addr = tile_addr + ((ppu->window_line_counter % 8) * 2);
             uint8_t lo = read_byte(ppu->mmu, tile_addr);
             uint8_t hi = read_byte(ppu->mmu, tile_addr + 1);
-            uint8_t x_bit_pos = 7 - ((i - (WX - 7)) % 8);
+            uint8_t x_bit_pos = 7 - ((i - (wx - 7)) % 8);
             uint8_t bit_lo = (lo >> x_bit_pos) & 0x01;
             uint8_t bit_hi = (hi >> x_bit_pos) & 0x01;
             bgw_pixel = (bit_hi << 1) | bit_lo;
-            ppu->frame_buffer[LY * 160 + i] = get_color((BGP >> (bgw_pixel * 2)) & 0x3);
+            ppu->frame_buffer[ppu->ly * 160 + i] = get_color((bgp >> (bgw_pixel * 2)) & 0x3);
         }
         else if (bg_en == 1){ 
-            uint16_t tile_map_addr = 0x9800 | (bg_tile_map << 10) | ((((LY + SCY) % 256) >> 3) << 5) | (((i + SCX) % 256) >> 3); // 0b10011(tilemap)(Y)(X)
+            uint16_t tile_map_addr = 0x9800 | (bg_tile_map << 10) | ((((ppu->ly + scy) % 256) >> 3) << 5) | (((i + scx) % 256) >> 3); // 0b10011(tilemap)(Y)(X)
             uint8_t tile_id = read_byte(ppu->mmu, tile_map_addr);
             uint16_t tile_addr;
             if (tile_data == 1){
@@ -160,14 +170,14 @@ void render_scanline(PPU* ppu, uint8_t LY){
             } else {
                 tile_addr = 0x9000 + ((int8_t)tile_id << 4);
             }
-            tile_addr = tile_addr + (((LY + SCY) % 8) * 2);
+            tile_addr = tile_addr + (((ppu->ly + scy) % 8) * 2);
             uint8_t lo = read_byte(ppu->mmu, tile_addr);
             uint8_t hi = read_byte(ppu->mmu, tile_addr + 1);
-            uint8_t x_bit_pos = 7 - ((i + SCX) % 8);
+            uint8_t x_bit_pos = 7 - ((i + scx) % 8);
             uint8_t bit_lo = (lo >> x_bit_pos) & 0x01;
             uint8_t bit_hi = (hi >> x_bit_pos) & 0x01;
             bgw_pixel = (bit_hi << 1) | bit_lo;
-            ppu->frame_buffer[LY * 160 + i] = get_color((BGP >> (bgw_pixel * 2)) & 0x3);
+            ppu->frame_buffer[ppu->ly * 160 + i] = get_color((bgp >> (bgw_pixel * 2)) & 0x3);
         }
         if (obj_en == 1){
             SpriteAttributes* obj = NULL;
@@ -187,15 +197,15 @@ void render_scanline(PPU* ppu, uint8_t LY){
                     tile_height = obj->y;
                 } 
                 else if ((obj->attributes & 0x40) != 0){ // Y flip 8x16
-                    tile_id = (LY >= (obj->y - 8)) ? obj->tile_index & 0xFE : obj->tile_index | 0x01;
+                    tile_id = (ppu->ly >= (obj->y - 8)) ? obj->tile_index & 0xFE : obj->tile_index | 0x01;
                     tile_height = obj->y + ((tile_id == (obj->tile_index | 0x01)) ? 0 : 8);
                 } else { // 8x16
-                    tile_id = (LY >= (obj->y - 8)) ? obj->tile_index | 0x01 : obj->tile_index & 0xFE;
+                    tile_id = (ppu->ly >= (obj->y - 8)) ? obj->tile_index | 0x01 : obj->tile_index & 0xFE;
                     tile_height = obj->y + ((tile_id == (obj->tile_index | 0x01)) ? 8 : 0);
                 }
 
                 uint16_t tile_addr = 0x8000 + ((uint16_t)tile_id << 4);
-                tile_addr = tile_addr + ((((obj->attributes & 0x40) != 0) ? (7 - LY - (tile_height - 16)) : (LY - (tile_height - 16))) * 2);
+                tile_addr = tile_addr + ((((obj->attributes & 0x40) != 0) ? (7 - ppu->ly - (tile_height - 16)) : (ppu->ly - (tile_height - 16))) * 2);
                 uint8_t lo = read_byte(ppu->mmu, tile_addr);
                 uint8_t hi = read_byte(ppu->mmu, tile_addr + 1);
                 uint8_t x_bit_pos = ((obj->attributes & 0x20) != 0) ? ((i - obj->x + 8) % 8) : 7 - ((i - obj->x + 8) % 8);
@@ -203,8 +213,8 @@ void render_scanline(PPU* ppu, uint8_t LY){
                 uint8_t bit_hi = (hi >> x_bit_pos) & 0x01;
                 obj_pixel = (bit_hi << 1) | bit_lo;
                 if (obj_pixel != 0 && ((bg_en == 0) || (bgw_pixel == 0) || ((obj->attributes & 0x80) == 0))){
-                    obj_pixel = ((((obj->attributes & 0x10) != 0) ? OBP1 : OBP0) >> (obj_pixel * 2)) & 0x3;
-                    ppu->frame_buffer[LY * 160 + i] = get_color(obj_pixel);
+                    obj_pixel = ((((obj->attributes & 0x10) != 0) ? obp1 : obp0) >> (obj_pixel * 2)) & 0x3;
+                    ppu->frame_buffer[ppu->ly * 160 + i] = get_color(obj_pixel);
                 }
             }
         }
@@ -214,10 +224,10 @@ void render_scanline(PPU* ppu, uint8_t LY){
 }
 
 void set_stat_mode(PPU* ppu){
-    uint8_t stat = read_byte(ppu->mmu, 0xFF41);
+    uint8_t stat = ppu->stat;
     stat &= ~0x03;
     stat |= ppu->mode;
-    write_byte(ppu->mmu, 0xFF41, stat);
+    ppu->stat = stat;
 
     if ((ppu->mode == MODE_OAM && (stat & (1 << 5)) != 0) || 
         (ppu->mode == MODE_VBLANK && (stat & (1 << 4)) != 0) ||
@@ -227,18 +237,17 @@ void set_stat_mode(PPU* ppu){
 }
 
 void set_ly(PPU* ppu){
-    uint8_t LY = ppu->LY;
-    write_byte(ppu->mmu, 0xFF44, LY);
+    uint8_t ly = ppu->ly;
 
-    uint8_t LYC = read_byte(ppu->mmu, 0xFF45);
-    uint8_t stat = read_byte(ppu->mmu, 0xFF41);
+    uint8_t lyc = ppu->lyc;
+    uint8_t stat = ppu->stat;
 
     stat &= ~0x4;
-    stat |= ((LYC == LY) ? 1 : 0) << 2;
+    stat |= ((lyc == ly) ? 1 : 0) << 2;
 
-    write_byte(ppu->mmu, 0xFF41, stat);
+    ppu->stat = stat;
 
-    if (LYC == LY && (stat & (1 << 6)) != 0){
+    if (lyc == ly && (stat & (1 << 6)) != 0){
         request_interrupt(ppu->mmu, INT_LCD);
     }
 }

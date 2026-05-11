@@ -1,4 +1,4 @@
-2. joypad
+2. convert MMIO to struct member variables
 3. finish mmu logic (timers)
 4. dma
 5. power up sequence

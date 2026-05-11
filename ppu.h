@@ -26,8 +26,22 @@ typedef struct {
 
     mode_t mode; // 0: HBlank, 1: VBlank, 2: OAM, 3: Draw
     uint8_t mode_cycles;
-    uint8_t LY;
     uint8_t window_line_counter;
+
+    uint8_t lcdc; // 0xFF40
+    uint8_t stat; // 0xFF41
+    uint8_t scy; // 0xFF42
+    uint8_t scx; // 0xFF43
+    uint8_t ly; // 0xFF44
+    uint8_t lyc; // 0xFF45
+    uint8_t bgp; // 0xFF47
+    uint8_t obp0; // 0xFF48
+    uint8_t obp1; // 0xFF49
+    uint8_t wy; // 0xFF4A
+    uint8_t wx; // 0xFF4B
+
+    uint8_t vram[8192];
+    uint8_t oam[160];
 
     uint32_t frame_buffer[160 * 144];
     SpriteAttributes sprite_buffer[10];
@@ -45,7 +59,7 @@ void ppu_init(PPU* ppu);
 void ppu_destroy(PPU* ppu);
 
 void scan_oam(PPU* ppu);
-void render_scanline(PPU* ppu, uint8_t LY);
+void render_scanline(PPU* ppu);
 
 void set_stat_mode(PPU* ppu);
 void set_ly(PPU* ppu);
