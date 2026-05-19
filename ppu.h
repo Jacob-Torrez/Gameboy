@@ -40,8 +40,8 @@ typedef struct {
     uint8_t wy; // 0xFF4A
     uint8_t wx; // 0xFF4B
 
-    uint8_t vram[8192];
-    uint8_t oam[160];
+    uint8_t vram[0x2000]; // 0x8000 - 0x9FFF
+    uint8_t oam[0xA0]; // 0xFE00 - 0xFE9F
 
     uint32_t frame_buffer[160 * 144];
     SpriteAttributes sprite_buffer[10];
