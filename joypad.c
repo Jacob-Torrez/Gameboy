@@ -111,3 +111,10 @@ uint8_t process_events(JOYPAD* joypad){
 
     return ret;
 }
+
+uint8_t joypad_init(JOYPAD* joypad){
+    joypad->action_direction[0] = 0x0F;
+    joypad->action_direction[1] = 0x0F;
+
+    return 0;
+}

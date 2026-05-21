@@ -1,6 +1,7 @@
 #include "cpu.h"
+#include "mmu.h"
 
-void cpu_clear(CPU* cpu){
+uint8_t cpu_init(CPU* cpu){
     cpu->PC = 0x0000;
     cpu->SP = 0x0000;
     cpu->A = 0x00;
@@ -11,11 +12,25 @@ void cpu_clear(CPU* cpu){
     cpu->H = 0x00;
     cpu->L = 0x00;
 
+    cpu->ime = 0;
+    cpu->halted = 0;
+    cpu->stopped = 0;
+
+    cpu->set_ime_next = 0;
+    cpu->halt_bug = 0;
+
     cpu->clock = 0;
+
+    return 0;
 }
 
 uint8_t cpu_step(CPU* cpu){
     uint8_t opcode = read_byte(cpu->mmu, cpu->PC++);
+
+    if (cpu->halt_bug){
+        cpu->PC--;
+        cpu->halt_bug = 0;
+    }
 
     uint8_t (*instr)(CPU*) = opcode_table[opcode];
 
@@ -1062,10 +1077,10 @@ uint8_t RRCA_0x0F(CPU* cpu){
 
     return cycles;
 }
-uint8_t STOP_N8_0x10(CPU* cpu){
+uint8_t STOP_0x10(CPU* cpu){
     uint8_t cycles = 4;
 
-    cpu->PC += 1;
+    uint8_t padding = read_byte(cpu->mmu, cpu->PC++);
 
     cpu->stopped = 1;
 
@@ -1619,7 +1634,14 @@ uint8_t LD_mHL_L_0x75(CPU* cpu){
 uint8_t HALT_0x76(CPU* cpu){
     uint8_t cycles = 4;
 
-    cpu->halted = 1;
+    uint8_t ie = read_byte(cpu->mmu, 0xFFFF);
+    uint8_t ifl = read_byte(cpu->mmu, 0xFF0F);
+
+    if (cpu->ime == 0 && (ie & ifl & 0x1F) != 0){
+        cpu->halt_bug = 1;
+    } else {
+        cpu->halted = 1;
+    }
 
     return cycles;
 }
@@ -3800,7 +3822,7 @@ uint8_t (*opcode_table[256])(CPU* cpu) = {
     /* 0x0E */ LD_C_N8_0x0E,
     /* 0x0F */ RRCA_0x0F,
 
-    /* 0x10 */ STOP_N8_0x10,
+    /* 0x10 */ STOP_0x10,
     /* 0x11 */ LD_DE_N16_0x11,
     /* 0x12 */ LD_mDE_A_0x12,
     /* 0x13 */ INC_DE_0x13,

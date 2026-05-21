@@ -2,11 +2,13 @@
 #define PPU_H
 
 #include <SDL2/SDL.h>
-#include "mmu.h"
+
+struct MMU;
+typedef struct MMU MMU;
 
 typedef enum {
     MODE_HBLANK, MODE_VBLANK, MODE_OAM, MODE_DRAW
-} mode_t;
+} ppu_mode_t;
 
 typedef enum {
     COLOR_WHITE, COLOR_LGRAY, COLOR_DGRAY, COLOR_BLACK
@@ -19,13 +21,13 @@ typedef struct{
     uint8_t attributes;
 } SpriteAttributes;
 
-typedef struct {
+typedef struct PPU {
     SDL_Window* window;
     SDL_Renderer* renderer;
     SDL_Texture* texture;
 
-    mode_t mode; // 0: HBlank, 1: VBlank, 2: OAM, 3: Draw
-    uint8_t mode_cycles;
+    ppu_mode_t mode; // 0: HBlank, 1: VBlank, 2: OAM, 3: Draw
+    uint16_t mode_cycles;
     uint8_t window_line_counter;
 
     uint8_t lcdc; // 0xFF40
@@ -53,18 +55,8 @@ typedef struct {
 } PPU;
 
 void ppu_step(PPU* ppu, uint8_t cycles);
-void ppu_reset(PPU* ppu);
 
-void ppu_init(PPU* ppu);
+uint8_t ppu_init(PPU* ppu);
 void ppu_destroy(PPU* ppu);
-
-void scan_oam(PPU* ppu);
-void render_scanline(PPU* ppu);
-
-void set_stat_mode(PPU* ppu);
-void set_ly(PPU* ppu);
-
-uint8_t get_cycles_needed(uint8_t mode);
-uint32_t get_color(color_t color);
 
 #endif

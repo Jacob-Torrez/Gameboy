@@ -3,15 +3,19 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "ppu.h"
-#include "timer.h"
-#include "joypad.h"
+
+struct PPU;
+typedef struct PPU PPU;
+struct JOYPAD;
+typedef struct JOYPAD JOYPAD;
+struct TIMER;
+typedef struct TIMER TIMER;
 
 typedef enum {
     INT_VBLANK, INT_LCD, INT_TIMER, INT_SERIAL, INT_JOYPAD
 } interrupt_t;
 
-typedef struct {
+typedef struct MMU {
     uint8_t* rom;
     uint8_t* bios;
 
@@ -28,7 +32,7 @@ typedef struct {
     uint8_t bios_enabled; // If read_byte reads from BIOS or ROM
 
     uint8_t dma; // 0xFF46
-    uint8_t dma_cycles; // Cycles left in DMA transfer
+    uint16_t dma_cycles; // Cycles left in DMA transfer
 
     uint8_t bank; // 0xFF50
 

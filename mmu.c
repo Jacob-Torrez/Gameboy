@@ -1,4 +1,10 @@
 #include "mmu.h"
+#include "ppu.h"
+#include "joypad.h"
+#include "timer.h"
+
+static uint8_t read_rom(MMU* mmu, const char* filename);
+static uint8_t read_bios(MMU* mmu);
 
 uint8_t read_byte(MMU* mmu, uint16_t addr){
     if (mmu->bios_enabled == 1 && addr < 0x0100){
@@ -185,7 +191,7 @@ uint8_t mmu_init(MMU* mmu, const char* filename){
     return 0;
 }
 
-uint8_t read_rom(MMU* mmu, const char* filename){ // TODO
+static uint8_t read_rom(MMU* mmu, const char* filename){ // TODO
     FILE* file = fopen(filename, "rb");
 
     if (file == NULL){
@@ -207,7 +213,7 @@ uint8_t read_rom(MMU* mmu, const char* filename){ // TODO
     return 0;
 }
 
-uint8_t read_bios(MMU* mmu){
+static uint8_t read_bios(MMU* mmu){
     FILE* file = fopen("dmg_boot.gb", "rb");
 
     if (file == NULL){

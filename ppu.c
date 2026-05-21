@@ -1,4 +1,15 @@
 #include "ppu.h"
+#include "mmu.h"
+
+#define SCALE 3
+
+static void ppu_reset(PPU* ppu);
+static void scan_oam(PPU* ppu);
+static void render_scanline(PPU* ppu);
+static void set_stat_mode(PPU* ppu);
+static void set_ly(PPU* ppu);
+static uint16_t get_cycles_needed(ppu_mode_t mode);
+static uint32_t get_color(color_t color);
 
 void ppu_step(PPU* ppu, uint8_t cycles){
     uint8_t LCD_en = ppu->lcdc >> 7; // 0: off 1: on (PPU/LCD)
@@ -13,7 +24,7 @@ void ppu_step(PPU* ppu, uint8_t cycles){
 
     ppu->mode_cycles += cycles;
 
-    uint8_t cycles_needed = get_cycles_needed(ppu->mode);
+    uint16_t cycles_needed = get_cycles_needed(ppu->mode);
 
     if (ppu->mode_cycles >= cycles_needed){
         ppu->mode_cycles -= cycles_needed;
@@ -51,7 +62,7 @@ void ppu_step(PPU* ppu, uint8_t cycles){
 
                 break;
             case MODE_DRAW:
-                render_scaline(ppu);
+                render_scanline(ppu);
 
                 ppu->mode = MODE_HBLANK;
                 set_stat_mode(ppu);
@@ -61,11 +72,13 @@ void ppu_step(PPU* ppu, uint8_t cycles){
     }
 }
 
-void ppu_init(PPU* ppu){
+uint8_t ppu_init(PPU* ppu){
     SDL_Init(SDL_INIT_VIDEO);
 
-    ppu->window = SDL_CreateWindow("Gameboy", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 160, 144, 0);
+    ppu->window = SDL_CreateWindow("Gameboy", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 160 * SCALE, 144 * SCALE, 0);
     ppu->renderer = SDL_CreateRenderer(ppu->window, -1, 0);
+    SDL_RenderSetLogicalSize(ppu->renderer, 160, 144);
+    SDL_RenderSetIntegerScale(ppu->renderer, SDL_TRUE);
     ppu->texture = SDL_CreateTexture(ppu->renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 160, 144);
 
     ppu->mode = 2;
@@ -84,6 +97,8 @@ void ppu_init(PPU* ppu){
     ppu->obp1 = 0;
     ppu->wy = 0;
     ppu->wx = 0;
+
+    return 0;
 }
 
 void ppu_destroy(PPU* ppu){
@@ -95,7 +110,16 @@ void ppu_destroy(PPU* ppu){
     ppu->window = NULL;
 }
 
-void scan_oam(PPU* ppu){
+static void ppu_reset(PPU* ppu){
+    ppu->ly = 0;
+    ppu->mode_cycles = 0;
+
+    ppu->mode = MODE_OAM;
+
+    memset(ppu->frame_buffer, 0, sizeof(ppu->frame_buffer));
+}
+
+static void scan_oam(PPU* ppu){
     ppu->sprite_count = 0;
 
     uint8_t sprite_height = ((ppu->lcdc & (1 << 2)) >> 2) ? 16 : 8; // lcdc bit 2
@@ -116,7 +140,7 @@ void scan_oam(PPU* ppu){
     }
 }
 
-void render_scanline(PPU* ppu){
+static void render_scanline(PPU* ppu){
     uint8_t scy = ppu->scy; // Background viewport Y
     uint8_t scx = ppu->scx; // Background viewport X
     uint8_t wy = ppu->wy; // Window Y
@@ -140,12 +164,12 @@ void render_scanline(PPU* ppu){
 
     uint8_t window_used = 0;
     for (int i = 0; i < 160; i++){
-        uint32_t bgw_pixel;
-        uint32_t obj_pixel;
+        uint32_t bgw_pixel = 0;
+        uint32_t obj_pixel = 0;
         if (w_en == 1 && wy <= ppu->ly && (wx - 7) <= i){
             window_used = 1;
             uint16_t tile_map_addr = 0x9800 | (w_tile_map << 10) | ((ppu->window_line_counter >> 3) << 5) | ((i - (wx - 7)) >> 3); // 0b10011(tilemap)(Y)(X)
-            uint8_t tile_id = read_byte(ppu->mmu, tile_map_addr);
+            uint8_t tile_id = ppu->vram[tile_map_addr - 0x8000];
             uint16_t tile_addr;
             if (tile_data == 1){
                 tile_addr = 0x8000 + ((uint16_t)tile_id << 4);
@@ -153,8 +177,8 @@ void render_scanline(PPU* ppu){
                 tile_addr = 0x9000 + ((int8_t)tile_id << 4);
             }
             tile_addr = tile_addr + ((ppu->window_line_counter % 8) * 2);
-            uint8_t lo = read_byte(ppu->mmu, tile_addr);
-            uint8_t hi = read_byte(ppu->mmu, tile_addr + 1);
+            uint8_t lo = ppu->vram[tile_addr - 0x8000];
+            uint8_t hi = ppu->vram[tile_addr + 1 - 0x8000];
             uint8_t x_bit_pos = 7 - ((i - (wx - 7)) % 8);
             uint8_t bit_lo = (lo >> x_bit_pos) & 0x01;
             uint8_t bit_hi = (hi >> x_bit_pos) & 0x01;
@@ -163,7 +187,7 @@ void render_scanline(PPU* ppu){
         }
         else if (bg_en == 1){ 
             uint16_t tile_map_addr = 0x9800 | (bg_tile_map << 10) | ((((ppu->ly + scy) % 256) >> 3) << 5) | (((i + scx) % 256) >> 3); // 0b10011(tilemap)(Y)(X)
-            uint8_t tile_id = read_byte(ppu->mmu, tile_map_addr);
+            uint8_t tile_id = ppu->vram[tile_map_addr - 0x8000];
             uint16_t tile_addr;
             if (tile_data == 1){
                 tile_addr = 0x8000 + ((uint16_t)tile_id << 4);
@@ -171,8 +195,8 @@ void render_scanline(PPU* ppu){
                 tile_addr = 0x9000 + ((int8_t)tile_id << 4);
             }
             tile_addr = tile_addr + (((ppu->ly + scy) % 8) * 2);
-            uint8_t lo = read_byte(ppu->mmu, tile_addr);
-            uint8_t hi = read_byte(ppu->mmu, tile_addr + 1);
+            uint8_t lo = ppu->vram[tile_addr - 0x8000];
+            uint8_t hi = ppu->vram[tile_addr + 1 - 0x8000];
             uint8_t x_bit_pos = 7 - ((i + scx) % 8);
             uint8_t bit_lo = (lo >> x_bit_pos) & 0x01;
             uint8_t bit_hi = (hi >> x_bit_pos) & 0x01;
@@ -206,8 +230,8 @@ void render_scanline(PPU* ppu){
 
                 uint16_t tile_addr = 0x8000 + ((uint16_t)tile_id << 4);
                 tile_addr = tile_addr + ((((obj->attributes & 0x40) != 0) ? (7 - ppu->ly - (tile_height - 16)) : (ppu->ly - (tile_height - 16))) * 2);
-                uint8_t lo = read_byte(ppu->mmu, tile_addr);
-                uint8_t hi = read_byte(ppu->mmu, tile_addr + 1);
+                uint8_t lo = ppu->vram[tile_addr - 0x8000];
+                uint8_t hi = ppu->vram[tile_addr + 1 - 0x8000];
                 uint8_t x_bit_pos = ((obj->attributes & 0x20) != 0) ? ((i - obj->x + 8) % 8) : 7 - ((i - obj->x + 8) % 8);
                 uint8_t bit_lo = (lo >> x_bit_pos) & 0x01;
                 uint8_t bit_hi = (hi >> x_bit_pos) & 0x01;
@@ -223,7 +247,7 @@ void render_scanline(PPU* ppu){
     ppu->window_line_counter += window_used;
 }
 
-void set_stat_mode(PPU* ppu){
+static void set_stat_mode(PPU* ppu){
     uint8_t stat = ppu->stat;
     stat &= ~0x03;
     stat |= ppu->mode;
@@ -236,7 +260,7 @@ void set_stat_mode(PPU* ppu){
         }
 }
 
-void set_ly(PPU* ppu){
+static void set_ly(PPU* ppu){
     uint8_t ly = ppu->ly;
 
     uint8_t lyc = ppu->lyc;
@@ -252,7 +276,7 @@ void set_ly(PPU* ppu){
     }
 }
 
-uint8_t get_cycles_needed(uint8_t mode){
+static uint16_t get_cycles_needed(ppu_mode_t mode){
     switch(mode){
         case MODE_HBLANK: return 204;
         case MODE_VBLANK: return 456;
@@ -262,7 +286,7 @@ uint8_t get_cycles_needed(uint8_t mode){
     }
 }
 
-uint32_t get_color(color_t color){
+static uint32_t get_color(color_t color){
     switch(color){
         case COLOR_BLACK: return 0xFF000000;
         case COLOR_WHITE: return 0xFFFFFFFF;

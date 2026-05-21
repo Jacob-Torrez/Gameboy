@@ -2,12 +2,14 @@
 #define CPU_H
 
 #include <stdint.h>
-#include "mmu.h"
 
 #define FLAG_Z (1 << 7)
 #define FLAG_N (1 << 6)
 #define FLAG_H (1 << 5)
 #define FLAG_C (1 << 4)
+
+struct MMU;
+typedef struct MMU MMU;
 
 typedef enum {
     REG_AF, REG_BC, REG_DE, REG_HL, REG_SP, REG_PC
@@ -17,7 +19,7 @@ typedef enum {
     REG_A, REG_B, REG_C, REG_D, REG_E, REG_H, REG_L, REG_F
 } reg8_t;
 
-typedef struct {
+typedef struct CPU {
     uint8_t A, B, C, D, E, H, L, F;
     uint16_t SP, PC;
 
@@ -26,23 +28,21 @@ typedef struct {
     uint8_t stopped;
 
     uint8_t set_ime_next;
+    uint8_t halt_bug;
 
     uint64_t clock;
     MMU* mmu;
 } CPU;
 
 // lookup tables
-uint8_t (*opcode_table[256])(CPU* cpu);
-uint8_t (*cb_opcode_table[256])(CPU* cpu);
+extern uint8_t (*opcode_table[256])(CPU* cpu);
+extern uint8_t (*cb_opcode_table[256])(CPU* cpu);
 
-// utility
-void cpu_clear(CPU* cpu);
+uint8_t cpu_init(CPU* cpu);
+
 uint8_t cpu_step(CPU* cpu);
 
 uint8_t interrupt_handler(CPU* cpu);
-
-uint16_t get_hl(CPU*cpu);
-uint8_t* get_r8_adr(CPU* cpu, reg8_t reg);
 
 // helpers
 uint8_t LD_R16_N16(CPU* cpu, reg16_t dst);
