@@ -52,7 +52,7 @@ void run_emulator(CPU* cpu){
             ppu_step(cpu->mmu->ppu, cycles);
 
             uint8_t timer_overflow = timer_step(cpu->mmu->timer, cycles);
-            if (timer_overflow){
+            if (timer_overflow){ // Doesn't account for 4 cycle delay before requesting interrupt
                 cpu->mmu->timer->tima = cpu->mmu->timer->tma;
                 request_interrupt(cpu->mmu, INT_TIMER);
             }

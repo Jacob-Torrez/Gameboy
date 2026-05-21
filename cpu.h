@@ -30,7 +30,6 @@ typedef struct CPU {
     uint8_t set_ime_next;
     uint8_t halt_bug;
 
-    uint64_t clock;
     MMU* mmu;
 } CPU;
 

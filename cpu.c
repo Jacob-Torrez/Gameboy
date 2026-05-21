@@ -19,8 +19,6 @@ uint8_t cpu_init(CPU* cpu){
     cpu->set_ime_next = 0;
     cpu->halt_bug = 0;
 
-    cpu->clock = 0;
-
     return 0;
 }
 

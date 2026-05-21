@@ -2,7 +2,7 @@
 
 uint16_t get_tac_mask(uint8_t mode);
 
-uint8_t timer_step(TIMER* timer, uint8_t cycles){ // TODO: TIMA DELAY, DIV BUG (reset DIV and TAC)?
+uint8_t timer_step(TIMER* timer, uint8_t cycles){
     uint8_t ret_cycles = 0;
 
     uint16_t mask = get_tac_mask(timer->tac & 0x3);

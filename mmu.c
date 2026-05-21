@@ -6,7 +6,7 @@
 static uint8_t read_rom(MMU* mmu, const char* filename);
 static uint8_t read_bios(MMU* mmu);
 
-uint8_t read_byte(MMU* mmu, uint16_t addr){
+uint8_t read_byte(MMU* mmu, uint16_t addr){ // TODO
     if (mmu->bios_enabled == 1 && addr < 0x0100){
         return mmu->bios[addr];
     }
@@ -191,7 +191,7 @@ uint8_t mmu_init(MMU* mmu, const char* filename){
     return 0;
 }
 
-static uint8_t read_rom(MMU* mmu, const char* filename){ // TODO
+static uint8_t read_rom(MMU* mmu, const char* filename){
     FILE* file = fopen(filename, "rb");
 
     if (file == NULL){
@@ -214,7 +214,7 @@ static uint8_t read_rom(MMU* mmu, const char* filename){ // TODO
 }
 
 static uint8_t read_bios(MMU* mmu){
-    FILE* file = fopen("dmg_boot.gb", "rb");
+    FILE* file = fopen("Boot.gb", "rb");
 
     if (file == NULL){
         printf("Error: Could not open BIOS file\n");
