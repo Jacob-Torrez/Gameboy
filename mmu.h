@@ -21,15 +21,19 @@ typedef struct MMU {
 
     uint8_t* rom_bank0; // 0x0000 - 0x3FFF
     uint8_t* rom_bankN; // 0x4000 - 0x7FFF
+    uint16_t rom_bank_num;
 
     uint8_t* external_ram; 
     uint8_t* eram_bankN; // 0xA000 - 0xBFFF
+    uint8_t ram_bank_num;
 
     uint8_t wram[0x2000]; // 0xC000 - 0xDFFF
 
     uint8_t hram[0x7F]; // 0xFF80 - 0xFFFE
 
     uint8_t bios_enabled; // If read_byte reads from BIOS or ROM
+    uint8_t mbc_enabled; // If writes control MBC
+    uint8_t ram_enabled; // If external RAM is enabled
 
     uint8_t dma; // 0xFF46
     uint16_t dma_cycles; // Cycles left in DMA transfer

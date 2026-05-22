@@ -6,50 +6,50 @@
 static uint8_t read_rom(MMU* mmu, const char* filename);
 static uint8_t read_bios(MMU* mmu);
 
-uint8_t read_byte(MMU* mmu, uint16_t addr){ // TODO
+uint8_t read_byte(MMU* mmu, uint16_t addr){
     if (mmu->bios_enabled == 1 && addr < 0x0100){
         return mmu->bios[addr];
     }
-    if (addr >= 0x0000 && addr <= 0x3FFF){ // ROM Bank 00
+    else if (addr >= 0x0000 && addr <= 0x3FFF){ // ROM Bank 00
         return mmu->rom_bank0[addr];
     }
-    if (addr >= 0x4000 && addr <= 0x7FFF){ // ROM Bank 01-NN (TODO MBC)
+    else if (addr >= 0x4000 && addr <= 0x7FFF){ // ROM Bank 01-NN
         return mmu->rom_bankN[addr - 0x4000];
     }
-    if (addr >= 0x8000 && addr <= 0x9FFF){ // VRAM
+    else if (addr >= 0x8000 && addr <= 0x9FFF){ // VRAM
         if (mmu->ppu->mode != MODE_DRAW){
             return mmu->ppu->vram[addr - 0x8000];
         } else {
             return 0xFF;
         }
     }
-    if (addr >= 0xA000 && addr <= 0xBFFF){ // External RAM (TODO SWAP?)
+    else if (mmu->ram_enabled && addr >= 0xA000 && addr <= 0xBFFF){ // External RAM
         return mmu->eram_bankN[addr - 0xA000];
     }
-    if (addr >= 0xC000 && addr <= 0xDFFF){ // Work RAM
+    else if (addr >= 0xC000 && addr <= 0xDFFF){ // Work RAM
         return mmu->wram[addr - 0xC000];
     }
-    if (addr >= 0xE000 && addr <= 0xFDFF){ // Echo RAM
+    else if (addr >= 0xE000 && addr <= 0xFDFF){ // Echo RAM
         return mmu->wram[addr - 0xE000];
     }
-    if (addr >= 0xFE00 && addr <= 0xFE9F){ // OAM
+    else if (addr >= 0xFE00 && addr <= 0xFE9F){ // OAM
         if (mmu->ppu->mode < MODE_OAM){
             return mmu->ppu->oam[addr - 0xFE00];
         } else {
             return 0xFF;
         }
     }
-    if (addr >= 0xFEA0 && addr <= 0xFEFF){ // Not Usable (TODO?)
+    else if (addr >= 0xFEA0 && addr <= 0xFEFF){ // Not Usable
         return 0xFF;
     }
-    if (addr >= 0xFF00 && addr <= 0xFF7F){ // I/O Registers
+    else if (addr >= 0xFF00 && addr <= 0xFF7F){ // I/O Registers
         switch (addr) {
             case 0xFF00: // JOYP
                 if ((mmu->joypad->action_direction[0] & 0x20) == 0){
-                    return mmu->joypad->action_direction[1] & 0xF;
+                    return 0xC0 | (mmu->joypad->action_direction[0] & 0x30) | (mmu->joypad->action_direction[1] & 0xF);
                 }
                 else if ((mmu->joypad->action_direction[0] & 0x10) == 0){
-                    return mmu->joypad->action_direction[0] & 0xF;
+                    return 0xC0 | (mmu->joypad->action_direction[1] & 0x30) | (mmu->joypad->action_direction[0] & 0xF);
                 } else {
                     return 0xF;
                 }
@@ -75,40 +75,60 @@ uint8_t read_byte(MMU* mmu, uint16_t addr){ // TODO
             default: return 0xFF;
         }
     }
-    if (addr >= 0xFF80 && addr <= 0xFFFE){ // HRAM
+    else if (addr >= 0xFF80 && addr <= 0xFFFE){ // HRAM
         return mmu->hram[addr - 0xFF80];
     }
-    if (addr == 0xFFFF){ // IE
+    else if (addr == 0xFFFF){ // IE
         return mmu->ie;
     }
 
     return 0xFF;
 }
 
-void write_byte(MMU* mmu, uint16_t addr, uint8_t val){ // TODO
-    if (addr >= 0x0000 && addr <= 0x7FFF){ // ROM (TODO: MBC)
+void write_byte(MMU* mmu, uint16_t addr, uint8_t val){
+    if (mmu->mbc_enabled && addr >= 0x0000 && addr <= 0x1FFF){ // RAM Enable
+        if (val == 0x0A){
+            mmu->ram_enabled = 1;
+        }
+        else if (val == 0x00){
+            mmu->ram_enabled = 0;
+        }
+    }
+    else if (mmu->mbc_enabled && addr >= 0x2000 && addr <= 0x2FFF){ // 8 lower bits of ROM bank number
+        mmu->rom_bank_num = val | (mmu->rom_bank_num & 0xFF00);
+        mmu->rom_bankN = mmu->rom + (0x4000 * mmu->rom_bank_num);
+    }
+    else if (mmu->mbc_enabled && addr >= 0x3000 && addr <= 0x3FFF){ // 9th bit of ROM bank number
+        mmu->rom_bank_num = ((val & 0x01) << 8) | (mmu->rom_bank_num & 0x00FF);
+        mmu->rom_bankN = mmu->rom + (0x4000 * mmu->rom_bank_num);
+    }
+    else if (mmu->mbc_enabled && addr >= 0x4000 && addr <= 0x5FFF){ // RAM bank number
+        mmu->ram_bank_num = val & 0x0F;
+        mmu->eram_bankN = mmu->external_ram + (0x2000 * mmu->ram_bank_num);
+    }
+    else if (addr >= 0x6000 && addr <= 0x7FFF){ // Unused
         return;
     }
-    if (addr >= 0x8000 && addr <= 0x9FFF){ // VRAM
+    else if (addr >= 0x8000 && addr <= 0x9FFF){ // VRAM
         if (mmu->ppu->mode != MODE_DRAW){
             mmu->ppu->vram[addr - 0x8000] = val;
         }
     }
-    if (addr >= 0xA000 && addr <= 0xBFFF){ // External RAM
+    else if (mmu->ram_enabled && addr >= 0xA000 && addr <= 0xBFFF){ // External RAM
         mmu->eram_bankN[addr - 0xA000] = val;
     }
-    if (addr >= 0xC000 && addr <= 0xDFFF){ // WRAM
+    else if (addr >= 0xC000 && addr <= 0xDFFF){ // WRAM
         mmu->wram[addr - 0xC000] = val;
     }
-    if (addr >= 0xE000 && addr <= 0xFDFF){ // Echo RAM
+    else if (addr >= 0xE000 && addr <= 0xFDFF){ // Echo RAM
         mmu->wram[addr - 0xE000] = val;
     }
-    if (addr >= 0xFE00 && addr <= 0xFE9F){ // OAM
+    else if (addr >= 0xFE00 && addr <= 0xFE9F){ // OAM
         if (mmu->ppu->mode < MODE_OAM){
             mmu->ppu->oam[addr - 0xFE00] = val;
         }
     }
-    if (addr >= 0xFF00 && addr <= 0xFF7F){ // I/O Registers
+    else if (addr >= 0xFF00 && addr <= 0xFF7F){ // I/O Registers
         switch (addr) {
             case 0xFF00: // JOYP
                 mmu->joypad->action_direction[0] = (mmu->joypad->action_direction[0] & 0x0F) | (val & 0xF0);
@@ -153,10 +173,10 @@ void write_byte(MMU* mmu, uint16_t addr, uint8_t val){ // TODO
             default: return;
         }
     }
-    if (addr >= 0xFF80 && addr <= 0xFFFE){ // HRAM
+    else if (addr >= 0xFF80 && addr <= 0xFFFE){ // HRAM
         mmu->hram[addr - 0xFF80] = val;
     }
-    if (addr == 0xFFFF){ // IE
+    else if (addr == 0xFFFF){ // IE
         mmu->ie = val;
     }
 }
@@ -178,8 +198,26 @@ uint8_t mmu_init(MMU* mmu, const char* filename){
 
     mmu->rom_bank0 = mmu->rom;
     mmu->rom_bankN = mmu->rom + 0x4000;
+    mmu->rom_bank_num = 1;
 
-    // TODO EXTERNAL RAM?
+    mmu->mbc_enabled = (mmu->rom[0x0147] == 0x1B) ? 1 : 0;
+
+    if (mmu->mbc_enabled){
+        mmu->external_ram = calloc(0x8000, sizeof(uint8_t));
+        if (mmu->external_ram == NULL){
+            return 1;
+        }
+
+        mmu->eram_bankN = mmu->external_ram;
+        mmu->ram_bank_num = 0;
+        mmu->ram_enabled = 0;
+
+        FILE* save = fopen("save.sav", "rb");
+        if (save) {
+            fread(mmu->external_ram, 1, 0x8000, save);
+            fclose(save);
+        }
+    }
 
     mmu->bios_enabled = 1;
     mmu->dma = 0;

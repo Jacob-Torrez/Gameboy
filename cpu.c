@@ -3268,7 +3268,7 @@ uint8_t BIT_1_L_0x4D(CPU* cpu){
     return BIT_R8(cpu, 1, REG_L);
 }
 uint8_t BIT_1_mHL_0x4E(CPU* cpu){
-    return BIT_mHL(cpu, 0);
+    return BIT_mHL(cpu, 1);
 }
 uint8_t BIT_1_A_0x4F(CPU* cpu){
     return BIT_R8(cpu, 1, REG_A);
@@ -3292,7 +3292,7 @@ uint8_t BIT_2_L_0x55(CPU* cpu){
     return BIT_R8(cpu, 2, REG_L);
 }
 uint8_t BIT_2_mHL_0x56(CPU* cpu){
-    return BIT_mHL(cpu, 0);
+    return BIT_mHL(cpu, 2);
 }
 uint8_t BIT_2_A_0x57(CPU* cpu){
     return BIT_R8(cpu, 2, REG_A);
@@ -3316,7 +3316,7 @@ uint8_t BIT_3_L_0x5D(CPU* cpu){
     return BIT_R8(cpu, 3, REG_L);
 }
 uint8_t BIT_3_mHL_0x5E(CPU* cpu){
-    return BIT_mHL(cpu, 0);
+    return BIT_mHL(cpu, 3);
 }
 uint8_t BIT_3_A_0x5F(CPU* cpu){
     return BIT_R8(cpu, 3, REG_A);
@@ -3340,7 +3340,7 @@ uint8_t BIT_4_L_0x65(CPU* cpu){
     return BIT_R8(cpu, 4, REG_L);
 }
 uint8_t BIT_4_mHL_0x66(CPU* cpu){
-    return BIT_mHL(cpu, 0);
+    return BIT_mHL(cpu, 4);
 }
 uint8_t BIT_4_A_0x67(CPU* cpu){
     return BIT_R8(cpu, 4, REG_A);
@@ -3364,7 +3364,7 @@ uint8_t BIT_5_L_0x6D(CPU* cpu){
     return BIT_R8(cpu, 5, REG_L);
 }
 uint8_t BIT_5_mHL_0x6E(CPU* cpu){
-    return BIT_mHL(cpu, 0);
+    return BIT_mHL(cpu, 5);
 }
 uint8_t BIT_5_A_0x6F(CPU* cpu){
     return BIT_R8(cpu, 5, REG_A);
@@ -3388,7 +3388,7 @@ uint8_t BIT_6_L_0x75(CPU* cpu){
     return BIT_R8(cpu, 6, REG_L);
 }
 uint8_t BIT_6_mHL_0x76(CPU* cpu){
-    return BIT_mHL(cpu, 0);
+    return BIT_mHL(cpu, 6);
 }
 uint8_t BIT_6_A_0x77(CPU* cpu){
     return BIT_R8(cpu, 6, REG_A);
@@ -3412,7 +3412,7 @@ uint8_t BIT_7_L_0x7D(CPU* cpu){
     return BIT_R8(cpu, 7, REG_L);
 }
 uint8_t BIT_7_mHL_0x7E(CPU* cpu){
-    return BIT_mHL(cpu, 0);
+    return BIT_mHL(cpu, 7);
 }
 uint8_t BIT_7_A_0x7F(CPU* cpu){
     return BIT_R8(cpu, 7, REG_A);

@@ -72,7 +72,7 @@ void run_emulator(CPU* cpu){
 }
 
 int main(int argc, char* argv[]){
-    const char* rom_path = (argc > 1) ? argv[1] : "Tetris.gb";
+    const char* rom_path = argv[1];
 
     MMU mmu = {0};
     CPU cpu = {0};
@@ -107,8 +107,17 @@ int main(int argc, char* argv[]){
 
     printf("Shutting down...\n");
 
+    if (mmu.mbc_enabled && mmu.external_ram){
+        FILE* save = fopen("save.sav", "wb");
+        if (save){
+            fwrite(mmu.external_ram, 1, 0x8000, save);
+            fclose(save);
+        }
+    }
+
     if (mmu.rom) free(mmu.rom);
     if (mmu.bios) free(mmu.bios);
+    if (mmu.external_ram) free(mmu.external_ram);
     
     if (ppu.texture) SDL_DestroyTexture(ppu.texture);
     if (ppu.renderer) SDL_DestroyRenderer(ppu.renderer);
