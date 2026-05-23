@@ -29,3 +29,13 @@ To play Tetris:
 To play Pokemon Yellow:
 ```bash
 ./gameboy roms/PokemonYellow.gb
+```
+
+### Controls
+- **D-Pad(Up, Left, Down, Right):** `W`, `A`, `S`, `D`
+- **A Button:** `R`
+- **B Button:** `E`
+- **Start:** `V`
+- **Select:** `B`
+
+**Note:** You can change these control mappings at any time by modifying the `SDL_KEYDOWN` and `SDL_KEYUP` key codes inside src/joypad.c and recompiling.
