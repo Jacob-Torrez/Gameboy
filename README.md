@@ -38,4 +38,4 @@ To play Pokemon Yellow:
 - **Start:** `V`
 - **Select:** `B`
 
-**Note:** You can change these control mappings at any time by modifying the `SDL_KEYDOWN` and `SDL_KEYUP` key codes inside src/joypad.c and recompiling.
+**Note:** You can change these control mappings at any time by modifying the `SDL_KEYDOWN` and `SDL_KEYUP` key codes inside `src/joypad.c` and recompiling.
