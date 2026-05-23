@@ -212,7 +212,7 @@ uint8_t mmu_init(MMU* mmu, const char* filename){
         mmu->ram_bank_num = 0;
         mmu->ram_enabled = 0;
 
-        FILE* save = fopen("save.sav", "rb");
+        FILE* save = fopen("saves/save.sav", "rb");
         if (save) {
             fread(mmu->external_ram, 1, 0x8000, save);
             fclose(save);
@@ -252,7 +252,7 @@ static uint8_t read_rom(MMU* mmu, const char* filename){
 }
 
 static uint8_t read_bios(MMU* mmu){
-    FILE* file = fopen("Boot.gb", "rb");
+    FILE* file = fopen("roms/Boot.gb", "rb");
 
     if (file == NULL){
         printf("Error: Could not open BIOS file\n");

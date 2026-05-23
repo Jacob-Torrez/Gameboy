@@ -20,8 +20,8 @@ typedef enum {
 } reg8_t;
 
 typedef struct CPU {
-    uint8_t A, B, C, D, E, H, L, F;
-    uint16_t SP, PC;
+    uint8_t a, b, c, d, e, h, l, f;
+    uint16_t sp, pc;
 
     uint8_t ime;
     uint8_t halted;

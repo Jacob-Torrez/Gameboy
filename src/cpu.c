@@ -2,15 +2,15 @@
 #include "mmu.h"
 
 uint8_t cpu_init(CPU* cpu){
-    cpu->PC = 0x0000;
-    cpu->SP = 0x0000;
-    cpu->A = 0x00;
-    cpu->B = 0x00;
-    cpu->C = 0x00;
-    cpu->D = 0x00;
-    cpu->E = 0x00;
-    cpu->H = 0x00;
-    cpu->L = 0x00;
+    cpu->pc = 0x0000;
+    cpu->sp = 0x0000;
+    cpu->a = 0x00;
+    cpu->b = 0x00;
+    cpu->c = 0x00;
+    cpu->d = 0x00;
+    cpu->e = 0x00;
+    cpu->h = 0x00;
+    cpu->l = 0x00;
 
     cpu->ime = 0;
     cpu->halted = 0;
@@ -23,10 +23,10 @@ uint8_t cpu_init(CPU* cpu){
 }
 
 uint8_t cpu_step(CPU* cpu){
-    uint8_t opcode = read_byte(cpu->mmu, cpu->PC++);
+    uint8_t opcode = read_byte(cpu->mmu, cpu->pc++);
 
     if (cpu->halt_bug){
-        cpu->PC--;
+        cpu->pc--;
         cpu->halt_bug = 0;
     }
 
@@ -77,12 +77,12 @@ uint8_t interrupt_handler(CPU* cpu){
         }
 
         // call to interrupt service
-        uint16_t PC = cpu->PC;
+        uint16_t PC = cpu->pc;
 
-        write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
-        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
+        write_byte(cpu->mmu, --cpu->sp, (PC & 0xFF00) >> 8);
+        write_byte(cpu->mmu, --cpu->sp, PC & 0x00FF);
 
-        cpu->PC = addr;
+        cpu->pc = addr;
     } 
 
     return cycles;
@@ -91,20 +91,20 @@ uint8_t interrupt_handler(CPU* cpu){
 // utilities
 uint8_t* get_r8_adr(CPU* cpu, reg8_t reg){
     switch (reg){
-        case REG_A: return &cpu->A;
-        case REG_B: return &cpu->B;
-        case REG_C: return &cpu->C;
-        case REG_D: return &cpu->D;
-        case REG_E: return &cpu->E;
-        case REG_H: return &cpu->H;
-        case REG_L: return &cpu->L;
-        case REG_F: return &cpu->F;
+        case REG_A: return &cpu->a;
+        case REG_B: return &cpu->b;
+        case REG_C: return &cpu->c;
+        case REG_D: return &cpu->d;
+        case REG_E: return &cpu->e;
+        case REG_H: return &cpu->h;
+        case REG_L: return &cpu->l;
+        case REG_F: return &cpu->f;
         default: return 0;
     }
 }
 
 uint16_t get_hl(CPU* cpu){
-    return ((uint16_t)cpu->L) | ((uint16_t)(cpu->H << 8));
+    return ((uint16_t)cpu->l) | ((uint16_t)(cpu->h << 8));
 }
 
 // helpers
@@ -112,22 +112,22 @@ uint8_t LD_R16_N16(CPU* cpu, reg16_t dst){
     uint8_t cycles = 12;
     
     if (dst == REG_SP){
-        uint16_t* dst_ptr = &cpu->SP;
+        uint16_t* dst_ptr = &cpu->sp;
 
-        *dst_ptr = ((uint16_t)read_byte(cpu->mmu, cpu->PC++) | (uint16_t)(read_byte(cpu->mmu, cpu->PC++) << 8));
+        *dst_ptr = ((uint16_t)read_byte(cpu->mmu, cpu->pc++) | (uint16_t)(read_byte(cpu->mmu, cpu->pc++) << 8));
 
     } else {
         uint8_t* hi_ptr;
         uint8_t* lo_ptr;
 
         switch (dst){
-            case REG_BC: hi_ptr = &cpu->B; lo_ptr = &cpu->C; break;
-            case REG_DE: hi_ptr = &cpu->D; lo_ptr = &cpu->E; break;
-            case REG_HL: hi_ptr = &cpu->H; lo_ptr = &cpu->L; break; 
+            case REG_BC: hi_ptr = &cpu->b; lo_ptr = &cpu->c; break;
+            case REG_DE: hi_ptr = &cpu->d; lo_ptr = &cpu->e; break;
+            case REG_HL: hi_ptr = &cpu->h; lo_ptr = &cpu->l; break; 
         }
 
-        *lo_ptr = read_byte(cpu->mmu, cpu->PC++);
-        *hi_ptr = read_byte(cpu->mmu, cpu->PC++);
+        *lo_ptr = read_byte(cpu->mmu, cpu->pc++);
+        *hi_ptr = read_byte(cpu->mmu, cpu->pc++);
     }
 
     return cycles;
@@ -141,9 +141,9 @@ uint8_t LD_mR16_R8(CPU* cpu, reg16_t dst, reg8_t src){
     uint8_t* lo_ptr;
 
     switch (dst){
-        case REG_BC: hi_ptr = &cpu->B; lo_ptr = &cpu->C; break;
-        case REG_DE: hi_ptr = &cpu->D; lo_ptr = &cpu->E; break;
-        case REG_HL: hi_ptr = &cpu->H; lo_ptr = &cpu->L; break; 
+        case REG_BC: hi_ptr = &cpu->b; lo_ptr = &cpu->c; break;
+        case REG_DE: hi_ptr = &cpu->d; lo_ptr = &cpu->e; break;
+        case REG_HL: hi_ptr = &cpu->h; lo_ptr = &cpu->l; break; 
     }
 
     uint16_t R16 = ((uint16_t)*lo_ptr) | ((uint16_t)(*hi_ptr << 8));
@@ -161,9 +161,9 @@ uint8_t LD_R8_mR16(CPU* cpu, reg8_t dst, reg16_t src){
     uint8_t* lo_ptr;
 
     switch (src){
-        case REG_BC: hi_ptr = &cpu->B; lo_ptr = &cpu->C; break;
-        case REG_DE: hi_ptr = &cpu->D; lo_ptr = &cpu->E; break;
-        case REG_HL: hi_ptr = &cpu->H; lo_ptr = &cpu->L; break; 
+        case REG_BC: hi_ptr = &cpu->b; lo_ptr = &cpu->c; break;
+        case REG_DE: hi_ptr = &cpu->d; lo_ptr = &cpu->e; break;
+        case REG_HL: hi_ptr = &cpu->h; lo_ptr = &cpu->l; break; 
     }
 
     uint16_t R16 = ((uint16_t)*lo_ptr) | ((uint16_t)(*hi_ptr << 8));
@@ -187,7 +187,7 @@ uint8_t LD_R8_N8(CPU* cpu, reg8_t dst){
 
     uint8_t* dst_ptr = get_r8_adr(cpu, dst);
 
-    *dst_ptr = read_byte(cpu->mmu, cpu->PC++);
+    *dst_ptr = read_byte(cpu->mmu, cpu->pc++);
 
     return cycles;
 }
@@ -201,17 +201,17 @@ uint8_t INC_R8(CPU* cpu, reg8_t dst){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
     if ((R8 & 0x0F) == 0x0F){
-        cpu->F |= FLAG_H;
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
     *dst_ptr = result;
@@ -222,7 +222,7 @@ uint8_t INC_R16(CPU* cpu, reg16_t dst){
     uint8_t cycles = 8;
 
     if (dst == REG_SP){
-        uint16_t* dst_ptr = &cpu->SP;
+        uint16_t* dst_ptr = &cpu->sp;
 
         *dst_ptr += 1;
 
@@ -231,9 +231,9 @@ uint8_t INC_R16(CPU* cpu, reg16_t dst){
         uint8_t* lo_ptr;
 
         switch (dst){
-            case REG_BC: hi_ptr = &cpu->B; lo_ptr = &cpu->C; break;
-            case REG_DE: hi_ptr = &cpu->D; lo_ptr = &cpu->E; break;
-            case REG_HL: hi_ptr = &cpu->H; lo_ptr = &cpu->L; break; 
+            case REG_BC: hi_ptr = &cpu->b; lo_ptr = &cpu->c; break;
+            case REG_DE: hi_ptr = &cpu->d; lo_ptr = &cpu->e; break;
+            case REG_HL: hi_ptr = &cpu->h; lo_ptr = &cpu->l; break; 
         }
 
         *lo_ptr += 1;
@@ -249,7 +249,7 @@ uint8_t DEC_R16(CPU* cpu, reg16_t dst){
     uint8_t cycles = 8;
 
     if (dst == REG_SP){
-        uint16_t* dst_ptr = &cpu->SP;
+        uint16_t* dst_ptr = &cpu->sp;
 
         *dst_ptr -= 1;
 
@@ -258,9 +258,9 @@ uint8_t DEC_R16(CPU* cpu, reg16_t dst){
         uint8_t* lo_ptr;
 
         switch (dst){
-            case REG_BC: hi_ptr = &cpu->B; lo_ptr = &cpu->C; break;
-            case REG_DE: hi_ptr = &cpu->D; lo_ptr = &cpu->E; break;
-            case REG_HL: hi_ptr = &cpu->H; lo_ptr = &cpu->L; break; 
+            case REG_BC: hi_ptr = &cpu->b; lo_ptr = &cpu->c; break;
+            case REG_DE: hi_ptr = &cpu->d; lo_ptr = &cpu->e; break;
+            case REG_HL: hi_ptr = &cpu->h; lo_ptr = &cpu->l; break; 
         }
 
         *lo_ptr -= 1;
@@ -281,17 +281,17 @@ uint8_t DEC_R8(CPU* cpu, reg8_t dst){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F |= FLAG_N;
+    cpu->f |= FLAG_N;
 
     if ((result & 0x0F) == 0x0F){
-        cpu->F |= FLAG_H;
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
     *dst_ptr = result;
@@ -306,7 +306,7 @@ uint8_t ADD_HL_R16(CPU* cpu, reg16_t src){
     uint16_t result;
 
     if (src == REG_SP){
-        uint16_t* src_ptr = &cpu->SP;
+        uint16_t* src_ptr = &cpu->sp;
         R16 = *src_ptr;
 
         result = HL + R16;
@@ -315,9 +315,9 @@ uint8_t ADD_HL_R16(CPU* cpu, reg16_t src){
         uint8_t* lo_ptr;
 
         switch (src){
-            case REG_BC: hi_ptr = &cpu->B; lo_ptr = &cpu->C; break;
-            case REG_DE: hi_ptr = &cpu->D; lo_ptr = &cpu->E; break;
-            case REG_HL: hi_ptr = &cpu->H; lo_ptr = &cpu->L; break; 
+            case REG_BC: hi_ptr = &cpu->b; lo_ptr = &cpu->c; break;
+            case REG_DE: hi_ptr = &cpu->d; lo_ptr = &cpu->e; break;
+            case REG_HL: hi_ptr = &cpu->h; lo_ptr = &cpu->l; break; 
         }
 
         R16 = ((uint16_t)*lo_ptr) | ((uint16_t)(*hi_ptr << 8));
@@ -326,53 +326,53 @@ uint8_t ADD_HL_R16(CPU* cpu, reg16_t src){
     }
 
     // flags
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
     if (result < HL){
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     if (((HL & 0x0FFF) + (R16 & 0x0FFF)) > 0x0FFF){
-        cpu->F |= FLAG_H;
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
-    cpu->L = result & 0xFF;
-    cpu->H = (result >> 8) & 0xFF;
+    cpu->l = result & 0xFF;
+    cpu->h = (result >> 8) & 0xFF;
 
     return cycles;
 }
 uint8_t ADD_R8(CPU* cpu, reg8_t src){
     uint8_t cycles = 4;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
     uint8_t* src_ptr = get_r8_adr(cpu, src);
     uint16_t result;
 
     result = *dst_ptr + *src_ptr;
 
     // flags
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
     if ((uint8_t)result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
     if (result > 0xFF){
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     if ((*dst_ptr & 0x0F) + (*src_ptr & 0x0F) > 0x0F){
-        cpu->F |= FLAG_H;
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
     *dst_ptr = (uint8_t)result;
@@ -382,31 +382,31 @@ uint8_t ADD_R8(CPU* cpu, reg8_t src){
 uint8_t ADC_R8(CPU* cpu, reg8_t src){
     uint8_t cycles = 4;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
     uint8_t* src_ptr = get_r8_adr(cpu, src);
     uint16_t result;
 
-    result = *dst_ptr + *src_ptr + ((cpu->F & FLAG_C) >> 4);
+    result = *dst_ptr + *src_ptr + ((cpu->f & FLAG_C) >> 4);
 
     // flags
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
     if ((uint8_t)result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    if ((*dst_ptr & 0x0F) + (*src_ptr & 0x0F) + ((cpu->F & FLAG_C) >> 4) > 0x0F){
-        cpu->F |= FLAG_H;
+    if ((*dst_ptr & 0x0F) + (*src_ptr & 0x0F) + ((cpu->f & FLAG_C) >> 4) > 0x0F){
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
     if (result > 0xFF){
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     *dst_ptr = (uint8_t) result;
@@ -416,31 +416,31 @@ uint8_t ADC_R8(CPU* cpu, reg8_t src){
 uint8_t SUB_R8(CPU* cpu, reg8_t src){
     uint8_t cycles = 4;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
     uint8_t* src_ptr = get_r8_adr(cpu, src);
     uint8_t result;
 
     result = *dst_ptr - *src_ptr;
 
     // flags
-    cpu->F |= FLAG_N;
+    cpu->f |= FLAG_N;
 
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
     if (*src_ptr > *dst_ptr){
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     if ((*dst_ptr & 0x0F) < (*src_ptr & 0x0F)){
-        cpu->F |= FLAG_H;
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
     *dst_ptr = result;
@@ -450,31 +450,31 @@ uint8_t SUB_R8(CPU* cpu, reg8_t src){
 uint8_t SBC_R8(CPU* cpu, reg8_t src){
     uint8_t cycles = 4;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
     uint8_t* src_ptr = get_r8_adr(cpu, src);
     uint8_t result;
 
-    result = *dst_ptr - *src_ptr - ((cpu->F & FLAG_C) >> 4);
+    result = *dst_ptr - *src_ptr - ((cpu->f & FLAG_C) >> 4);
 
     // flags
-    cpu->F |= FLAG_N;
+    cpu->f |= FLAG_N;
 
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    if ((*dst_ptr & 0x0F) < (*src_ptr & 0x0F) + ((cpu->F & FLAG_C) >> 4)){
-        cpu->F |= FLAG_H;
+    if ((*dst_ptr & 0x0F) < (*src_ptr & 0x0F) + ((cpu->f & FLAG_C) >> 4)){
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
-    if ((uint16_t)*src_ptr + ((cpu->F & FLAG_C) >> 4) > *dst_ptr){
-        cpu->F |= FLAG_C;
+    if ((uint16_t)*src_ptr + ((cpu->f & FLAG_C) >> 4) > *dst_ptr){
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     *dst_ptr = result;
@@ -484,7 +484,7 @@ uint8_t SBC_R8(CPU* cpu, reg8_t src){
 uint8_t AND_R8(CPU* cpu, reg8_t src){
     uint8_t cycles = 4;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
     uint8_t* src_ptr = get_r8_adr(cpu, src);
     uint8_t result;
 
@@ -492,16 +492,16 @@ uint8_t AND_R8(CPU* cpu, reg8_t src){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F |= FLAG_H;
+    cpu->f |= FLAG_H;
 
-    cpu->F &= ~FLAG_C;
+    cpu->f &= ~FLAG_C;
 
     *dst_ptr = result;
 
@@ -510,7 +510,7 @@ uint8_t AND_R8(CPU* cpu, reg8_t src){
 uint8_t XOR_R8(CPU* cpu, reg8_t src){
     uint8_t cycles = 4;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
     uint8_t* src_ptr = get_r8_adr(cpu, src);
     uint8_t result;
 
@@ -518,16 +518,16 @@ uint8_t XOR_R8(CPU* cpu, reg8_t src){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
-    cpu->F &= ~FLAG_C;
+    cpu->f &= ~FLAG_C;
 
     *dst_ptr = result;
 
@@ -536,7 +536,7 @@ uint8_t XOR_R8(CPU* cpu, reg8_t src){
 uint8_t OR_R8(CPU* cpu, reg8_t src){
     uint8_t cycles = 4;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
     uint8_t* src_ptr = get_r8_adr(cpu, src);
     uint8_t result;
 
@@ -544,16 +544,16 @@ uint8_t OR_R8(CPU* cpu, reg8_t src){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
-    cpu->F &= ~FLAG_C;
+    cpu->f &= ~FLAG_C;
 
     *dst_ptr = result;
 
@@ -562,31 +562,31 @@ uint8_t OR_R8(CPU* cpu, reg8_t src){
 uint8_t CP_R8(CPU* cpu, reg8_t src){
     uint8_t cycles = 4;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
     uint8_t* src_ptr = get_r8_adr(cpu, src);
     uint8_t result;
 
     result = *dst_ptr - *src_ptr;
 
     // flags
-    cpu->F |= FLAG_N;
+    cpu->f |= FLAG_N;
 
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
     if (*src_ptr > *dst_ptr){
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     if ((*dst_ptr & 0x0F) < (*src_ptr & 0x0F)){
-        cpu->F |= FLAG_H;
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
     return cycles;
@@ -598,17 +598,17 @@ uint8_t POP_R16(CPU* cpu, reg16_t dst){
     uint8_t* lo_ptr;
 
     switch (dst){
-        case REG_BC: hi_ptr = &cpu->B; lo_ptr = &cpu->C; break;
-        case REG_DE: hi_ptr = &cpu->D; lo_ptr = &cpu->E; break;
-        case REG_HL: hi_ptr = &cpu->H; lo_ptr = &cpu->L; break; 
-        case REG_AF: hi_ptr = &cpu->A; lo_ptr = &cpu->F; break;
+        case REG_BC: hi_ptr = &cpu->b; lo_ptr = &cpu->c; break;
+        case REG_DE: hi_ptr = &cpu->d; lo_ptr = &cpu->e; break;
+        case REG_HL: hi_ptr = &cpu->h; lo_ptr = &cpu->l; break; 
+        case REG_AF: hi_ptr = &cpu->a; lo_ptr = &cpu->f; break;
     }
 
-    *lo_ptr = read_byte(cpu->mmu, cpu->SP++);
-    *hi_ptr = read_byte(cpu->mmu, cpu->SP++);
+    *lo_ptr = read_byte(cpu->mmu, cpu->sp++);
+    *hi_ptr = read_byte(cpu->mmu, cpu->sp++);
 
     if (dst == REG_AF){
-        cpu->F &= 0xF0;
+        cpu->f &= 0xF0;
     }
 
     return cycles;
@@ -620,26 +620,26 @@ uint8_t PUSH_R16(CPU* cpu, reg16_t src){
     uint8_t* lo_ptr;
 
     switch (src){
-        case REG_BC: hi_ptr = &cpu->B; lo_ptr = &cpu->C; break;
-        case REG_DE: hi_ptr = &cpu->D; lo_ptr = &cpu->E; break;
-        case REG_HL: hi_ptr = &cpu->H; lo_ptr = &cpu->L; break; 
-        case REG_AF: hi_ptr = &cpu->A; lo_ptr = &cpu->F; break;
+        case REG_BC: hi_ptr = &cpu->b; lo_ptr = &cpu->c; break;
+        case REG_DE: hi_ptr = &cpu->d; lo_ptr = &cpu->e; break;
+        case REG_HL: hi_ptr = &cpu->h; lo_ptr = &cpu->l; break; 
+        case REG_AF: hi_ptr = &cpu->a; lo_ptr = &cpu->f; break;
     }
 
-    write_byte(cpu->mmu, --cpu->SP, *hi_ptr);
-    write_byte(cpu->mmu, --cpu->SP, *lo_ptr);
+    write_byte(cpu->mmu, --cpu->sp, *hi_ptr);
+    write_byte(cpu->mmu, --cpu->sp, *lo_ptr);
 
     return cycles;
 }
 uint8_t RST(CPU* cpu, uint8_t vec){
     uint8_t cycles = 16;
 
-    uint16_t PC = cpu->PC;
+    uint16_t PC = cpu->pc;
 
-    write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
-    write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
+    write_byte(cpu->mmu, --cpu->sp, (PC & 0xFF00) >> 8);
+    write_byte(cpu->mmu, --cpu->sp, PC & 0x00FF);
 
-    cpu->PC = 0x0008 * vec;
+    cpu->pc = 0x0008 * vec;
 
     return cycles;
 }
@@ -656,19 +656,19 @@ uint8_t RLC_R8(CPU* cpu, reg8_t dst){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (last_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     *dst_ptr = result;
@@ -687,19 +687,19 @@ uint8_t RRC_R8(CPU* cpu, reg8_t dst){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (first_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     *dst_ptr = result;
@@ -714,23 +714,23 @@ uint8_t RL_R8(CPU* cpu, reg8_t dst){
     uint8_t last_bit;
 
     last_bit = ((*dst_ptr & 0x80) >> 7);
-    result = (*dst_ptr << 1) | ((cpu->F & FLAG_C) >> 4);
+    result = (*dst_ptr << 1) | ((cpu->f & FLAG_C) >> 4);
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (last_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     *dst_ptr = result;
@@ -745,23 +745,23 @@ uint8_t RR_R8(CPU* cpu, reg8_t dst){
     uint8_t first_bit;
 
     first_bit = *dst_ptr & 0x01;
-    result = (*dst_ptr >> 1) | (((cpu->F & FLAG_C) << 3));
+    result = (*dst_ptr >> 1) | (((cpu->f & FLAG_C) << 3));
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (first_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     *dst_ptr = result;
@@ -780,19 +780,19 @@ uint8_t SLA_R8(CPU* cpu, reg8_t dst){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (last_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     *dst_ptr = result;
@@ -811,19 +811,19 @@ uint8_t SRA_R8(CPU* cpu, reg8_t dst){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (first_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     *dst_ptr = result;
@@ -840,16 +840,16 @@ uint8_t SWAP_R8(CPU* cpu, reg8_t dst){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
-    cpu->F &= ~FLAG_C;
+    cpu->f &= ~FLAG_C;
 
     *dst_ptr = result;
 
@@ -867,19 +867,19 @@ uint8_t SRL_R8(CPU* cpu, reg8_t dst){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (first_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     *dst_ptr = result;
@@ -894,14 +894,14 @@ uint8_t BIT_R8(CPU* cpu, uint8_t bit, reg8_t src){
 
     // flags
     if (src_bit == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F |= FLAG_H;
+    cpu->f |= FLAG_H;
 
     return cycles;
 }
@@ -914,14 +914,14 @@ uint8_t BIT_mHL(CPU* cpu, uint8_t bit){
 
     // flags
     if (mHL_bit == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F |= FLAG_H;
+    cpu->f |= FLAG_H;
 
     return cycles;
 }
@@ -994,7 +994,7 @@ uint8_t LD_B_N8_0x06(CPU* cpu){
 uint8_t RLCA_0x07(CPU* cpu){
     uint8_t cycles = 4;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
     uint8_t result;
     uint8_t last_bit;
 
@@ -1002,16 +1002,16 @@ uint8_t RLCA_0x07(CPU* cpu){
     result = (*dst_ptr << 1) | last_bit;
 
     // flags
-    cpu->F &= ~FLAG_Z;
+    cpu->f &= ~FLAG_Z;
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (last_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     *dst_ptr = result;
@@ -1021,9 +1021,9 @@ uint8_t RLCA_0x07(CPU* cpu){
 uint8_t LD_A16_SP_0x08(CPU* cpu){
     uint8_t cycles = 20;
 
-    uint16_t* src_ptr = &cpu->SP;
+    uint16_t* src_ptr = &cpu->sp;
 
-    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->pc++)) | (((uint16_t)read_byte(cpu->mmu, cpu->pc++)) << 8);
 
     write_byte(cpu->mmu, A16++, (uint8_t)*src_ptr);
     write_byte(cpu->mmu, A16, (uint8_t)(*src_ptr >> 8));
@@ -1051,7 +1051,7 @@ uint8_t LD_C_N8_0x0E(CPU* cpu){
 uint8_t RRCA_0x0F(CPU* cpu){
     uint8_t cycles = 4;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
     uint8_t result;
     uint8_t first_bit;
 
@@ -1059,16 +1059,16 @@ uint8_t RRCA_0x0F(CPU* cpu){
     result = (*dst_ptr >> 1) | (first_bit << 7);
 
     // flags
-    cpu->F &= ~FLAG_Z;
+    cpu->f &= ~FLAG_Z;
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (first_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     *dst_ptr = result;
@@ -1078,7 +1078,7 @@ uint8_t RRCA_0x0F(CPU* cpu){
 uint8_t STOP_0x10(CPU* cpu){
     uint8_t cycles = 4;
 
-    uint8_t padding = read_byte(cpu->mmu, cpu->PC++);
+    uint8_t padding = read_byte(cpu->mmu, cpu->pc++);
 
     cpu->stopped = 1;
 
@@ -1105,24 +1105,24 @@ uint8_t LD_D_N8_0x16(CPU* cpu){
 uint8_t RLA_0x17(CPU* cpu){
     uint8_t cycles = 4;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
     uint8_t result;
     uint8_t last_bit;
 
     last_bit = ((*dst_ptr & 0x80) >> 7);
-    result = (*dst_ptr << 1) | ((cpu->F & FLAG_C) >> 4);
+    result = (*dst_ptr << 1) | ((cpu->f & FLAG_C) >> 4);
 
     // flags
-    cpu->F &= ~FLAG_Z;
+    cpu->f &= ~FLAG_Z;
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (last_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     *dst_ptr = result;
@@ -1132,9 +1132,9 @@ uint8_t RLA_0x17(CPU* cpu){
 uint8_t JR_E8_0x18(CPU* cpu){
     uint8_t cycles = 12;
 
-    int8_t offset = (int8_t)read_byte(cpu->mmu, cpu->PC++);
+    int8_t offset = (int8_t)read_byte(cpu->mmu, cpu->pc++);
 
-    cpu->PC += offset;
+    cpu->pc += offset;
 
     return cycles;
 }
@@ -1159,24 +1159,24 @@ uint8_t LD_E_N8_0x1E(CPU* cpu){
 uint8_t RRA_0x1F(CPU* cpu){
     uint8_t cycles = 4;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
     uint8_t result;
     uint8_t first_bit;
 
     first_bit = *dst_ptr & 0x01;
-    result = (*dst_ptr >> 1) | (((cpu->F & FLAG_C) << 3));
+    result = (*dst_ptr >> 1) | (((cpu->f & FLAG_C) << 3));
 
     // flags
-    cpu->F &= ~FLAG_Z;
+    cpu->f &= ~FLAG_Z;
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (first_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     *dst_ptr = result;
@@ -1186,12 +1186,12 @@ uint8_t RRA_0x1F(CPU* cpu){
 uint8_t JR_NZ_E8_0x20(CPU* cpu){
     uint8_t cycles = 8;
 
-    int8_t offset = (int8_t)read_byte(cpu->mmu, cpu->PC++);
+    int8_t offset = (int8_t)read_byte(cpu->mmu, cpu->pc++);
 
-    if ((cpu->F & FLAG_Z) == 0){
+    if ((cpu->f & FLAG_Z) == 0){
         cycles = 12;
 
-        cpu->PC += offset;
+        cpu->pc += offset;
     }
 
     return cycles;
@@ -1206,8 +1206,8 @@ uint8_t LD_mHLi_A_0x22(CPU* cpu){
 
     uint16_t HLi = get_hl(cpu) + 1;
 
-    cpu->L = (uint8_t)HLi;
-    cpu->H = (uint8_t)((HLi & 0xFF00) >> 8);
+    cpu->l = (uint8_t)HLi;
+    cpu->h = (uint8_t)((HLi & 0xFF00) >> 8);
 
     return cycles;
 }
@@ -1228,48 +1228,48 @@ uint8_t DAA_0x27(CPU* cpu){
 
     uint8_t adjustment = 0;
 
-    if ((cpu->F & FLAG_N) == 0){
-        if ((cpu->F & FLAG_H) != 0 || (cpu->A & 0x0F) > 0x09){
+    if ((cpu->f & FLAG_N) == 0){
+        if ((cpu->f & FLAG_H) != 0 || (cpu->a & 0x0F) > 0x09){
             adjustment += 0x06;
         }
-        if ((cpu->F & FLAG_C) != 0 || cpu->A > 0x99){
+        if ((cpu->f & FLAG_C) != 0 || cpu->a > 0x99){
             adjustment += 0x60;
-            cpu->F |= FLAG_C;
+            cpu->f |= FLAG_C;
         }
 
-        cpu->A += adjustment;
+        cpu->a += adjustment;
 
     } else {
-        if ((cpu->F & FLAG_H) != 0){
+        if ((cpu->f & FLAG_H) != 0){
             adjustment += 0x06;
         }
-        if ((cpu->F & FLAG_C) != 0){
+        if ((cpu->f & FLAG_C) != 0){
             adjustment += 0x60;
         }
 
-        cpu->A -= adjustment;
+        cpu->a -= adjustment;
     }
 
     // flags
-    if (cpu->A == 0){
-        cpu->F |= FLAG_Z;
+    if (cpu->a == 0){
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     return cycles;
 }
 uint8_t JR_Z_E8_0x28(CPU* cpu){
     uint8_t cycles = 8;
 
-    int8_t offset = (int8_t)read_byte(cpu->mmu, cpu->PC++);
+    int8_t offset = (int8_t)read_byte(cpu->mmu, cpu->pc++);
 
-    if ((cpu->F & FLAG_Z) != 0){
+    if ((cpu->f & FLAG_Z) != 0){
         cycles = 12;
 
-        cpu->PC += offset;
+        cpu->pc += offset;
     }
 
     return cycles;
@@ -1284,8 +1284,8 @@ uint8_t LD_A_mHLi_0x2A(CPU* cpu){
 
     uint16_t HLi = get_hl(cpu) + 1;
 
-    cpu->L = (uint8_t)HLi;
-    cpu->H = (uint8_t)((HLi & 0xFF00) >> 8);
+    cpu->l = (uint8_t)HLi;
+    cpu->h = (uint8_t)((HLi & 0xFF00) >> 8);
 
     return cycles;
 }
@@ -1304,24 +1304,24 @@ uint8_t LD_L_N8_0x2E(CPU* cpu){
 uint8_t CPL_0x2F(CPU* cpu){
     uint8_t cycles = 4;
 
-    cpu->A = ~cpu->A;
+    cpu->a = ~cpu->a;
 
     // flags
-    cpu->F |= FLAG_N;
+    cpu->f |= FLAG_N;
 
-    cpu->F |= FLAG_H;
+    cpu->f |= FLAG_H;
 
     return cycles;
 }
 uint8_t JR_NC_E8_0x30(CPU* cpu){
     uint8_t cycles = 8;
 
-    int8_t offset = (int8_t)read_byte(cpu->mmu, cpu->PC++);
+    int8_t offset = (int8_t)read_byte(cpu->mmu, cpu->pc++);
 
-    if ((cpu->F & FLAG_C) == 0){
+    if ((cpu->f & FLAG_C) == 0){
         cycles = 12;
 
-        cpu->PC += offset;
+        cpu->pc += offset;
     }
 
     return cycles;
@@ -1336,8 +1336,8 @@ uint8_t LD_mHLd_A_0x32(CPU* cpu){
 
     uint16_t HLd = get_hl(cpu) - 1;
 
-    cpu->L = (uint8_t)HLd;
-    cpu->H = (uint8_t)((HLd & 0xFF00) >> 8);
+    cpu->l = (uint8_t)HLd;
+    cpu->h = (uint8_t)((HLd & 0xFF00) >> 8);
 
     return cycles;
 }
@@ -1354,17 +1354,17 @@ uint8_t INC_mHL_0x34(CPU* cpu){
 
     // flags
     if (mHL + 1 == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
     if ((mHL & 0x0F) == 0x0F){
-        cpu->F |= FLAG_H;
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
     return cycles;
@@ -1379,17 +1379,17 @@ uint8_t DEC_mHL_0x35(CPU* cpu){
 
     // flags
     if (mHL - 1 == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F |= FLAG_N;
+    cpu->f |= FLAG_N;
 
     if (((mHL - 1) & 0x0F) == 0x0F){
-        cpu->F |= FLAG_H;
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
     return cycles;
@@ -1397,7 +1397,7 @@ uint8_t DEC_mHL_0x35(CPU* cpu){
 uint8_t LD_mHL_N8_0x36(CPU* cpu){
     uint8_t cycles = 12;
 
-    uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
+    uint8_t N8 = read_byte(cpu->mmu, cpu->pc++);
     uint16_t HL = get_hl(cpu);
     write_byte(cpu->mmu, HL, N8);
 
@@ -1407,23 +1407,23 @@ uint8_t SCF_0x37(CPU* cpu){
     uint8_t cycles = 4;
 
     // flags
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
-    cpu->F |= FLAG_C;
+    cpu->f |= FLAG_C;
 
     return cycles;
 }
 uint8_t JR_C_E8_0x38(CPU* cpu){
     uint8_t cycles = 8;
 
-    int8_t offset = (int8_t)read_byte(cpu->mmu, cpu->PC++);
+    int8_t offset = (int8_t)read_byte(cpu->mmu, cpu->pc++);
 
-    if ((cpu->F & FLAG_C) != 0){
+    if ((cpu->f & FLAG_C) != 0){
         cycles = 12;
 
-        cpu->PC += offset;
+        cpu->pc += offset;
     }
 
     return cycles;
@@ -1438,8 +1438,8 @@ uint8_t LD_A_mHLd_0x3A(CPU* cpu){
 
     uint16_t HLd = get_hl(cpu) - 1;
 
-    cpu->L = (uint8_t)HLd;
-    cpu->H = (uint8_t)((HLd & 0xFF00) >> 8);
+    cpu->l = (uint8_t)HLd;
+    cpu->h = (uint8_t)((HLd & 0xFF00) >> 8);
 
     return cycles;
 }
@@ -1459,11 +1459,11 @@ uint8_t CCF_0x3F(CPU* cpu){
     uint8_t cycles = 4;
 
     // flags
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
-    cpu->F ^= FLAG_C;
+    cpu->f ^= FLAG_C;
 
     return cycles;
 }
@@ -1691,7 +1691,7 @@ uint8_t ADD_A_L_0x85(CPU* cpu){
 uint8_t ADD_A_mHL_0x86(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
     uint16_t HL = get_hl(cpu);
     uint8_t mHL = read_byte(cpu->mmu, HL);
@@ -1701,24 +1701,24 @@ uint8_t ADD_A_mHL_0x86(CPU* cpu){
     result = *dst_ptr + mHL;
 
     // flags
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
     if ((uint8_t)result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
     if (result > 0xFF){
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     if ((*dst_ptr & 0x0F) + (mHL & 0x0F) > 0x0F){
-        cpu->F |= FLAG_H;
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
     *dst_ptr = (uint8_t)result;
@@ -1749,34 +1749,34 @@ uint8_t ADC_A_L_0x8D(CPU* cpu){
 uint8_t ADC_A_mHL_0x8E(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
     
     uint16_t HL = get_hl(cpu);
     uint8_t mHL = read_byte(cpu->mmu, HL);
 
     uint16_t result;
 
-    result = *dst_ptr + mHL + ((cpu->F & FLAG_C) >> 4);
+    result = *dst_ptr + mHL + ((cpu->f & FLAG_C) >> 4);
 
     // flags
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
     if ((uint8_t)result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    if ((*dst_ptr & 0x0F) + (mHL & 0x0F) + ((cpu->F & FLAG_C) >> 4) > 0x0F){
-        cpu->F |= FLAG_H;
+    if ((*dst_ptr & 0x0F) + (mHL & 0x0F) + ((cpu->f & FLAG_C) >> 4) > 0x0F){
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
     if (result > 0xFF){
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     *dst_ptr = (uint8_t) result;
@@ -1807,7 +1807,7 @@ uint8_t SUB_A_L_0x95(CPU* cpu){
 uint8_t SUB_A_mHL_0x96(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
     uint16_t HL = get_hl(cpu);
     uint8_t mHL = read_byte(cpu->mmu, HL);
@@ -1817,24 +1817,24 @@ uint8_t SUB_A_mHL_0x96(CPU* cpu){
     result = *dst_ptr - mHL;
 
     // flags
-    cpu->F |= FLAG_N;
+    cpu->f |= FLAG_N;
 
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
     if (mHL > *dst_ptr){
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     if ((*dst_ptr & 0x0F) < (mHL & 0x0F)){
-        cpu->F |= FLAG_H;
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
     *dst_ptr = result;
@@ -1865,34 +1865,34 @@ uint8_t SBC_A_L_0x9D(CPU* cpu){
 uint8_t SBC_A_mHL_0x9E(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
     uint16_t HL = get_hl(cpu);
     uint8_t mHL = read_byte(cpu->mmu, HL);
 
     uint8_t result;
 
-    result = *dst_ptr - mHL - ((cpu->F & FLAG_C) >> 4);
+    result = *dst_ptr - mHL - ((cpu->f & FLAG_C) >> 4);
 
     // flags
-    cpu->F |= FLAG_N;
+    cpu->f |= FLAG_N;
 
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    if ((*dst_ptr & 0x0F) < (mHL & 0x0F) + ((cpu->F & FLAG_C) >> 4)){
-        cpu->F |= FLAG_H;
+    if ((*dst_ptr & 0x0F) < (mHL & 0x0F) + ((cpu->f & FLAG_C) >> 4)){
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
-    if ((uint16_t)mHL+ ((cpu->F & FLAG_C) >> 4) > *dst_ptr){
-        cpu->F |= FLAG_C;
+    if ((uint16_t)mHL+ ((cpu->f & FLAG_C) >> 4) > *dst_ptr){
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     *dst_ptr = result;
@@ -1923,7 +1923,7 @@ uint8_t AND_A_L_0xA5(CPU* cpu){
 uint8_t AND_A_mHL_0xA6(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
     uint16_t HL = get_hl(cpu);
     uint8_t mHL = read_byte(cpu->mmu, HL);
@@ -1934,16 +1934,16 @@ uint8_t AND_A_mHL_0xA6(CPU* cpu){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F |= FLAG_H;
+    cpu->f |= FLAG_H;
 
-    cpu->F &= ~FLAG_C;
+    cpu->f &= ~FLAG_C;
 
     *dst_ptr = result;
 
@@ -1973,7 +1973,7 @@ uint8_t XOR_A_L_0xAD(CPU* cpu){
 uint8_t XOR_A_mHL_0xAE(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
     uint16_t HL = get_hl(cpu);
     uint8_t mHL = read_byte(cpu->mmu, HL);
@@ -1984,16 +1984,16 @@ uint8_t XOR_A_mHL_0xAE(CPU* cpu){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
-    cpu->F &= ~FLAG_C;
+    cpu->f &= ~FLAG_C;
 
     *dst_ptr = result;
 
@@ -2023,7 +2023,7 @@ uint8_t OR_A_L_0xB5(CPU* cpu){
 uint8_t OR_A_mHL_0xB6(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
     uint16_t HL = get_hl(cpu);
     uint8_t mHL = read_byte(cpu->mmu, HL);
@@ -2034,16 +2034,16 @@ uint8_t OR_A_mHL_0xB6(CPU* cpu){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
-    cpu->F &= ~FLAG_C;
+    cpu->f &= ~FLAG_C;
 
     *dst_ptr = result;
 
@@ -2073,7 +2073,7 @@ uint8_t CP_A_L_0xBD(CPU* cpu){
 uint8_t CP_A_mHL_0xBE(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
     uint16_t HL = get_hl(cpu);
     uint8_t mHL = read_byte(cpu->mmu, HL);
@@ -2083,24 +2083,24 @@ uint8_t CP_A_mHL_0xBE(CPU* cpu){
     result = *dst_ptr - mHL;
 
     // flags
-    cpu->F |= FLAG_N;
+    cpu->f |= FLAG_N;
 
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
     if (mHL > *dst_ptr){
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     if ((*dst_ptr & 0x0F) < (mHL & 0x0F)){
-        cpu->F |= FLAG_H;
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
     return cycles;
@@ -2111,12 +2111,12 @@ uint8_t CP_A_A_0xBF(CPU* cpu){
 uint8_t RET_NZ_0xC0(CPU* cpu){
     uint8_t cycles = 8;
 
-    if ((cpu->F & FLAG_Z) == 0){
+    if ((cpu->f & FLAG_Z) == 0){
         cycles = 20;
 
-        uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->SP++)) | (((uint16_t)read_byte(cpu->mmu, cpu->SP++)) << 8);
+        uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->sp++)) | (((uint16_t)read_byte(cpu->mmu, cpu->sp++)) << 8);
 
-        cpu->PC = ret_addr;
+        cpu->pc = ret_addr;
     }
 
     return cycles;
@@ -2127,12 +2127,12 @@ uint8_t POP_BC_0xC1(CPU* cpu){
 uint8_t JP_NZ_A16_0xC2(CPU* cpu){
     uint8_t cycles = 12;
 
-    uint16_t offset = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+    uint16_t offset = ((uint16_t)read_byte(cpu->mmu, cpu->pc++)) | (((uint16_t)read_byte(cpu->mmu, cpu->pc++)) << 8);
 
-    if ((cpu->F & FLAG_Z) == 0){
+    if ((cpu->f & FLAG_Z) == 0){
         cycles = 16;
 
-        cpu->PC = offset;
+        cpu->pc = offset;
     }
 
     return cycles;
@@ -2140,26 +2140,26 @@ uint8_t JP_NZ_A16_0xC2(CPU* cpu){
 uint8_t JP_A16_0xC3(CPU* cpu){
     uint8_t cycles = 16;
 
-    uint16_t offset = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+    uint16_t offset = ((uint16_t)read_byte(cpu->mmu, cpu->pc++)) | (((uint16_t)read_byte(cpu->mmu, cpu->pc++)) << 8);
 
-    cpu->PC = offset;
+    cpu->pc = offset;
 
     return cycles;
 }
 uint8_t CALL_NZ_A16_0xC4(CPU* cpu){
     uint8_t cycles = 12;
 
-    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->pc++)) | (((uint16_t)read_byte(cpu->mmu, cpu->pc++)) << 8);
 
-    if ((cpu->F & FLAG_Z) == 0){
+    if ((cpu->f & FLAG_Z) == 0){
         cycles = 24;
 
-        uint16_t PC = cpu->PC;
+        uint16_t PC = cpu->pc;
 
-        write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
-        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
+        write_byte(cpu->mmu, --cpu->sp, (PC & 0xFF00) >> 8);
+        write_byte(cpu->mmu, --cpu->sp, PC & 0x00FF);
 
-        cpu->PC = A16;
+        cpu->pc = A16;
     }
 
     return cycles;
@@ -2170,33 +2170,33 @@ uint8_t PUSH_BC_0xC5(CPU* cpu){
 uint8_t ADD_A_N8_0xC6(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
-    uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
+    uint8_t N8 = read_byte(cpu->mmu, cpu->pc++);
 
     uint16_t result;
 
     result = *dst_ptr + N8;
 
     // flags
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
     if ((uint8_t)result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
     if (result > 0xFF){
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     if ((*dst_ptr & 0x0F) + (N8 & 0x0F) > 0x0F){
-        cpu->F |= FLAG_H;
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
     *dst_ptr = (uint8_t)result;
@@ -2209,12 +2209,12 @@ uint8_t RST_0x00_0xC7(CPU* cpu){
 uint8_t RET_Z_0xC8(CPU* cpu){
     uint8_t cycles = 8;
 
-    if ((cpu->F & FLAG_Z) != 0){
+    if ((cpu->f & FLAG_Z) != 0){
         cycles = 20;
 
-        uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->SP++)) | (((uint16_t)read_byte(cpu->mmu, cpu->SP++)) << 8);
+        uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->sp++)) | (((uint16_t)read_byte(cpu->mmu, cpu->sp++)) << 8);
 
-        cpu->PC = ret_addr;
+        cpu->pc = ret_addr;
     }
 
     return cycles;
@@ -2222,27 +2222,27 @@ uint8_t RET_Z_0xC8(CPU* cpu){
 uint8_t RET_0xC9(CPU* cpu){
     uint8_t cycles = 16;
 
-    uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->SP++)) | (((uint16_t)read_byte(cpu->mmu, cpu->SP++)) << 8);
+    uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->sp++)) | (((uint16_t)read_byte(cpu->mmu, cpu->sp++)) << 8);
 
-    cpu->PC = ret_addr;
+    cpu->pc = ret_addr;
 
     return cycles;
 }
 uint8_t JP_Z_A16_0xCA(CPU* cpu){
     uint8_t cycles = 12;
 
-    uint16_t offset = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+    uint16_t offset = ((uint16_t)read_byte(cpu->mmu, cpu->pc++)) | (((uint16_t)read_byte(cpu->mmu, cpu->pc++)) << 8);
 
-    if ((cpu->F & FLAG_Z) != 0){
+    if ((cpu->f & FLAG_Z) != 0){
         cycles = 16;
 
-        cpu->PC = offset;
+        cpu->pc = offset;
     }
 
     return cycles;
 }
 uint8_t PREFIX_0xCB(CPU* cpu){
-    uint8_t cb_opcode = read_byte(cpu->mmu, cpu->PC++);
+    uint8_t cb_opcode = read_byte(cpu->mmu, cpu->pc++);
 
     uint8_t (*instr)(CPU*) = cb_opcode_table[cb_opcode];
 
@@ -2251,17 +2251,17 @@ uint8_t PREFIX_0xCB(CPU* cpu){
 uint8_t CALL_Z_A16_0xCC(CPU* cpu){
     uint8_t cycles = 12;
 
-    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->pc++)) | (((uint16_t)read_byte(cpu->mmu, cpu->pc++)) << 8);
 
-    if ((cpu->F & FLAG_Z) != 0){
+    if ((cpu->f & FLAG_Z) != 0){
         cycles = 24;
 
-        uint16_t PC = cpu->PC;
+        uint16_t PC = cpu->pc;
 
-        write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
-        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
+        write_byte(cpu->mmu, --cpu->sp, (PC & 0xFF00) >> 8);
+        write_byte(cpu->mmu, --cpu->sp, PC & 0x00FF);
 
-        cpu->PC = A16;
+        cpu->pc = A16;
     }
 
     return cycles;
@@ -2269,47 +2269,47 @@ uint8_t CALL_Z_A16_0xCC(CPU* cpu){
 uint8_t CALL_A16_0xCD(CPU* cpu){
     uint8_t cycles = 24;
 
-    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->pc++)) | (((uint16_t)read_byte(cpu->mmu, cpu->pc++)) << 8);
 
-    uint16_t PC = cpu->PC;
+    uint16_t PC = cpu->pc;
 
-    write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
-    write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
+    write_byte(cpu->mmu, --cpu->sp, (PC & 0xFF00) >> 8);
+    write_byte(cpu->mmu, --cpu->sp, PC & 0x00FF);
 
-    cpu->PC = A16;
+    cpu->pc = A16;
 
     return cycles;
 }
 uint8_t ADC_A_N8_0xCE(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
-    uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
+    uint8_t N8 = read_byte(cpu->mmu, cpu->pc++);
 
     uint16_t result;
 
-    result = *dst_ptr + N8 + ((cpu->F & FLAG_C) >> 4);
+    result = *dst_ptr + N8 + ((cpu->f & FLAG_C) >> 4);
 
     // flags
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
     if ((uint8_t)result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    if ((*dst_ptr & 0x0F) + (N8 & 0x0F) + ((cpu->F & FLAG_C) >> 4) > 0x0F){
-        cpu->F |= FLAG_H;
+    if ((*dst_ptr & 0x0F) + (N8 & 0x0F) + ((cpu->f & FLAG_C) >> 4) > 0x0F){
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
     if (result > 0xFF){
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     *dst_ptr = (uint8_t) result;
@@ -2322,12 +2322,12 @@ uint8_t RST_0x08_0xCF(CPU* cpu){
 uint8_t RET_NC_0xD0(CPU* cpu){
     uint8_t cycles = 8;
 
-    if ((cpu->F & FLAG_C) == 0){
+    if ((cpu->f & FLAG_C) == 0){
         cycles = 20;
 
-        uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->SP++)) | (((uint16_t)read_byte(cpu->mmu, cpu->SP++)) << 8);
+        uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->sp++)) | (((uint16_t)read_byte(cpu->mmu, cpu->sp++)) << 8);
 
-        cpu->PC = ret_addr;
+        cpu->pc = ret_addr;
     }
 
     return cycles;
@@ -2338,12 +2338,12 @@ uint8_t POP_DE_0xD1(CPU* cpu){
 uint8_t JP_NC_A16_0xD2(CPU* cpu){
     uint8_t cycles = 12;
 
-    uint16_t offset = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+    uint16_t offset = ((uint16_t)read_byte(cpu->mmu, cpu->pc++)) | (((uint16_t)read_byte(cpu->mmu, cpu->pc++)) << 8);
 
-    if ((cpu->F & FLAG_C) == 0){
+    if ((cpu->f & FLAG_C) == 0){
         cycles = 16;
 
-        cpu->PC = offset;
+        cpu->pc = offset;
     }
 
     return cycles;
@@ -2351,17 +2351,17 @@ uint8_t JP_NC_A16_0xD2(CPU* cpu){
 uint8_t CALL_NC_A16_0xD4(CPU* cpu){
     uint8_t cycles = 12;
 
-    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->pc++)) | (((uint16_t)read_byte(cpu->mmu, cpu->pc++)) << 8);
 
-    if ((cpu->F & FLAG_C) == 0){
+    if ((cpu->f & FLAG_C) == 0){
         cycles = 24;
 
-        uint16_t PC = cpu->PC;
+        uint16_t PC = cpu->pc;
 
-        write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
-        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
+        write_byte(cpu->mmu, --cpu->sp, (PC & 0xFF00) >> 8);
+        write_byte(cpu->mmu, --cpu->sp, PC & 0x00FF);
 
-        cpu->PC = A16;
+        cpu->pc = A16;
     }
 
     return cycles;
@@ -2372,33 +2372,33 @@ uint8_t PUSH_DE_0xD5(CPU* cpu){
 uint8_t SUB_A_N8_0xD6(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
-    uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
+    uint8_t N8 = read_byte(cpu->mmu, cpu->pc++);
 
     uint8_t result;
 
     result = *dst_ptr - N8;
 
     // flags
-    cpu->F |= FLAG_N;
+    cpu->f |= FLAG_N;
 
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
     if (N8 > *dst_ptr){
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     if ((*dst_ptr & 0x0F) < (N8 & 0x0F)){
-        cpu->F |= FLAG_H;
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
     *dst_ptr = result;
@@ -2411,12 +2411,12 @@ uint8_t RST_0x10_0xD7(CPU* cpu){
 uint8_t RET_C_0xD8(CPU* cpu){
     uint8_t cycles = 8;
 
-    if ((cpu->F & FLAG_C) != 0){
+    if ((cpu->f & FLAG_C) != 0){
         cycles = 20;
 
-        uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->SP++)) | (((uint16_t)read_byte(cpu->mmu, cpu->SP++)) << 8);
+        uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->sp++)) | (((uint16_t)read_byte(cpu->mmu, cpu->sp++)) << 8);
 
-        cpu->PC = ret_addr;
+        cpu->pc = ret_addr;
     }
 
     return cycles;
@@ -2424,9 +2424,9 @@ uint8_t RET_C_0xD8(CPU* cpu){
 uint8_t RETI_0xD9(CPU* cpu){
     uint8_t cycles = 16;
 
-    uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->SP++)) | (((uint16_t)read_byte(cpu->mmu, cpu->SP++)) << 8);
+    uint16_t ret_addr = ((uint16_t)read_byte(cpu->mmu, cpu->sp++)) | (((uint16_t)read_byte(cpu->mmu, cpu->sp++)) << 8);
 
-    cpu->PC = ret_addr;
+    cpu->pc = ret_addr;
 
     cpu->ime = 1;
 
@@ -2435,12 +2435,12 @@ uint8_t RETI_0xD9(CPU* cpu){
 uint8_t JP_C_A16_0xDA(CPU* cpu){
     uint8_t cycles = 12;
 
-    uint16_t offset = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+    uint16_t offset = ((uint16_t)read_byte(cpu->mmu, cpu->pc++)) | (((uint16_t)read_byte(cpu->mmu, cpu->pc++)) << 8);
 
-    if ((cpu->F & FLAG_C) != 0){
+    if ((cpu->f & FLAG_C) != 0){
         cycles = 16;
 
-        cpu->PC = offset;
+        cpu->pc = offset;
     }
 
     return cycles;
@@ -2448,17 +2448,17 @@ uint8_t JP_C_A16_0xDA(CPU* cpu){
 uint8_t CALL_C_A16_0xDC(CPU* cpu){
     uint8_t cycles = 12;
 
-    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->pc++)) | (((uint16_t)read_byte(cpu->mmu, cpu->pc++)) << 8);
 
-    if ((cpu->F & FLAG_C) != 0){
+    if ((cpu->f & FLAG_C) != 0){
         cycles = 24;
 
-        uint16_t PC = cpu->PC;
+        uint16_t PC = cpu->pc;
 
-        write_byte(cpu->mmu, --cpu->SP, (PC & 0xFF00) >> 8);
-        write_byte(cpu->mmu, --cpu->SP, PC & 0x00FF);
+        write_byte(cpu->mmu, --cpu->sp, (PC & 0xFF00) >> 8);
+        write_byte(cpu->mmu, --cpu->sp, PC & 0x00FF);
 
-        cpu->PC = A16;
+        cpu->pc = A16;
     }
 
     return cycles;
@@ -2466,33 +2466,33 @@ uint8_t CALL_C_A16_0xDC(CPU* cpu){
 uint8_t SBC_A_N8_0xDE(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
-    uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
+    uint8_t N8 = read_byte(cpu->mmu, cpu->pc++);
 
     uint8_t result;
 
-    result = *dst_ptr - N8 - ((cpu->F & FLAG_C) >> 4);
+    result = *dst_ptr - N8 - ((cpu->f & FLAG_C) >> 4);
 
     // flags
-    cpu->F |= FLAG_N;
+    cpu->f |= FLAG_N;
 
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    if ((*dst_ptr & 0x0F) < (N8 & 0x0F) + ((cpu->F & FLAG_C) >> 4)){
-        cpu->F |= FLAG_H;
+    if ((*dst_ptr & 0x0F) < (N8 & 0x0F) + ((cpu->f & FLAG_C) >> 4)){
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
-    if ((uint16_t)N8 + ((cpu->F & FLAG_C) >> 4) > *dst_ptr){
-        cpu->F |= FLAG_C;
+    if ((uint16_t)N8 + ((cpu->f & FLAG_C) >> 4) > *dst_ptr){
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     *dst_ptr = result;
@@ -2505,9 +2505,9 @@ uint8_t RST_0x18_0xDF(CPU* cpu){
 uint8_t LDH_mA8_A_0xE0(CPU* cpu){
     uint8_t cycles = 12;
 
-    uint8_t A8 = read_byte(cpu->mmu, cpu->PC++);
+    uint8_t A8 = read_byte(cpu->mmu, cpu->pc++);
 
-    uint8_t* src_ptr = &cpu->A;
+    uint8_t* src_ptr = &cpu->a;
 
     write_byte(cpu->mmu, 0xFF00 | A8, *src_ptr);
 
@@ -2519,9 +2519,9 @@ uint8_t POP_HL_0xE1(CPU* cpu){
 uint8_t LDH_mC_A_0xE2(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* src_ptr = &cpu->A;
+    uint8_t* src_ptr = &cpu->a;
 
-    uint8_t* dst_ptr = &cpu->C;
+    uint8_t* dst_ptr = &cpu->c;
 
     write_byte(cpu->mmu, 0xFF00 | *dst_ptr, *src_ptr);
 
@@ -2533,9 +2533,9 @@ uint8_t PUSH_HL_0xE5(CPU* cpu){
 uint8_t AND_A_N8_0xE6(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
-    uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
+    uint8_t N8 = read_byte(cpu->mmu, cpu->pc++);
 
     uint8_t result;
 
@@ -2543,16 +2543,16 @@ uint8_t AND_A_N8_0xE6(CPU* cpu){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F |= FLAG_H;
+    cpu->f |= FLAG_H;
 
-    cpu->F &= ~FLAG_C;
+    cpu->f &= ~FLAG_C;
 
     *dst_ptr = result;
 
@@ -2564,30 +2564,30 @@ uint8_t RST_0x20_0xE7(CPU* cpu){
 uint8_t ADD_SP_E8_0xE8(CPU* cpu){
     uint8_t cycles = 16;
 
-    uint16_t SP = cpu->SP;
+    uint16_t SP = cpu->sp;
 
-    int8_t offset = (int8_t)read_byte(cpu->mmu, cpu->PC++);
+    int8_t offset = (int8_t)read_byte(cpu->mmu, cpu->pc++);
 
     uint16_t result = SP + offset;
 
     // flags
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_Z;
+    cpu->f &= ~FLAG_Z;
 
     if ((SP & 0x00FF) + ((uint8_t)offset) > 0xFF){
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     if ((SP & 0x000F) + ((uint8_t)offset & 0x0F) > 0x0F){
-        cpu->F |= FLAG_H;
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
-    cpu->SP = result;
+    cpu->sp = result;
 
     return cycles;
 }
@@ -2596,16 +2596,16 @@ uint8_t JP_HL_0xE9(CPU* cpu){
 
     uint16_t HL = get_hl(cpu);
 
-    cpu->PC = HL;
+    cpu->pc = HL;
 
     return cycles;
 }
 uint8_t LD_mA16_A_0xEA(CPU* cpu){
     uint8_t cycles = 16;
 
-    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->pc++)) | (((uint16_t)read_byte(cpu->mmu, cpu->pc++)) << 8);
 
-    uint8_t* src_ptr = &cpu->A;
+    uint8_t* src_ptr = &cpu->a;
 
     write_byte(cpu->mmu, A16, *src_ptr);
 
@@ -2614,9 +2614,9 @@ uint8_t LD_mA16_A_0xEA(CPU* cpu){
 uint8_t XOR_A_N8_0xEE(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
-    uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
+    uint8_t N8 = read_byte(cpu->mmu, cpu->pc++);
 
     uint8_t result;
 
@@ -2624,16 +2624,16 @@ uint8_t XOR_A_N8_0xEE(CPU* cpu){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
-    cpu->F &= ~FLAG_C;
+    cpu->f &= ~FLAG_C;
 
     *dst_ptr = result;
 
@@ -2645,9 +2645,9 @@ uint8_t RST_0x28_0xEF(CPU* cpu){
 uint8_t LDH_A_mA8_0xF0(CPU* cpu){
     uint8_t cycles = 12;
 
-    uint8_t A8 = read_byte(cpu->mmu, cpu->PC++);
+    uint8_t A8 = read_byte(cpu->mmu, cpu->pc++);
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
     *dst_ptr = read_byte(cpu->mmu, 0xFF00 | A8);
 
@@ -2659,9 +2659,9 @@ uint8_t POP_AF_0xF1(CPU* cpu){
 uint8_t LDH_A_mC_0xF2(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* src_ptr = &cpu->C;
+    uint8_t* src_ptr = &cpu->c;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
     *dst_ptr = read_byte(cpu->mmu, 0xFF00 | *src_ptr);
 
@@ -2680,9 +2680,9 @@ uint8_t PUSH_AF_0xF5(CPU* cpu){
 uint8_t OR_A_N8_0xF6(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
-    uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
+    uint8_t N8 = read_byte(cpu->mmu, cpu->pc++);
 
     uint8_t result;
 
@@ -2690,16 +2690,16 @@ uint8_t OR_A_N8_0xF6(CPU* cpu){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
-    cpu->F &= ~FLAG_C;
+    cpu->f &= ~FLAG_C;
 
     *dst_ptr = result;
 
@@ -2711,30 +2711,30 @@ uint8_t RST_0x30_0xF7(CPU* cpu){
 uint8_t LD_HL_SP_E8_0xF8(CPU* cpu){
     uint8_t cycles = 12;
 
-    uint16_t SP = cpu->SP;
-    int8_t E8 = (int8_t)read_byte(cpu->mmu, cpu->PC++);
+    uint16_t SP = cpu->sp;
+    int8_t E8 = (int8_t)read_byte(cpu->mmu, cpu->pc++);
 
     uint16_t result = SP + E8;
 
     // flags
-    cpu->F &= ~FLAG_Z;
+    cpu->f &= ~FLAG_Z;
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
     if ((SP & 0x00FF) + ((uint8_t)E8) > 0xFF){
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     if ((SP & 0x000F) + ((uint8_t)E8 & 0x0F) > 0x0F){
-        cpu->F |= FLAG_H;
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
-    cpu->L = (uint8_t)result;
-    cpu->H = (uint8_t)((result & 0xFF00) >> 8);
+    cpu->l = (uint8_t)result;
+    cpu->h = (uint8_t)((result & 0xFF00) >> 8);
 
     return cycles;
 }
@@ -2743,16 +2743,16 @@ uint8_t LD_SP_HL_0xF9(CPU* cpu){
 
     uint16_t HL = get_hl(cpu);
 
-    cpu->SP = HL;
+    cpu->sp = HL;
 
     return cycles;
 }
 uint8_t LD_A_mA16_0xFA(CPU* cpu){
     uint8_t cycles = 16;
 
-    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->PC++)) | (((uint16_t)read_byte(cpu->mmu, cpu->PC++)) << 8);
+    uint16_t A16 = ((uint16_t)read_byte(cpu->mmu, cpu->pc++)) | (((uint16_t)read_byte(cpu->mmu, cpu->pc++)) << 8);
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
     *dst_ptr = read_byte(cpu->mmu, A16);
 
@@ -2768,33 +2768,33 @@ uint8_t EI_0xFB(CPU* cpu){
 uint8_t CP_A_N8_0xFE(CPU* cpu){
     uint8_t cycles = 8;
 
-    uint8_t* dst_ptr = &cpu->A;
+    uint8_t* dst_ptr = &cpu->a;
 
-    uint8_t N8 = read_byte(cpu->mmu, cpu->PC++);
+    uint8_t N8 = read_byte(cpu->mmu, cpu->pc++);
 
     uint8_t result;
 
     result = *dst_ptr - N8;
 
     // flags
-    cpu->F |= FLAG_N;
+    cpu->f |= FLAG_N;
 
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
     if (N8 > *dst_ptr){
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     } else {
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     }
 
     if ((*dst_ptr & 0x0F) < (N8 & 0x0F)){
-        cpu->F |= FLAG_H;
+        cpu->f |= FLAG_H;
     } else {
-        cpu->F &= ~FLAG_H;
+        cpu->f &= ~FLAG_H;
     }
 
     return cycles;
@@ -2838,19 +2838,19 @@ uint8_t RLC_mHL_0x06(CPU* cpu){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (last_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     write_byte(cpu->mmu, HL, result);
@@ -2891,19 +2891,19 @@ uint8_t RRC_mHL_0x0E(CPU* cpu){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (first_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     write_byte(cpu->mmu, HL, result);
@@ -2940,23 +2940,23 @@ uint8_t RL_mHL_0x16(CPU* cpu){
     uint8_t last_bit;
 
     last_bit = ((mHL & 0x80) >> 7);
-    result = (mHL << 1) | ((cpu->F & FLAG_C) >> 4);
+    result = (mHL << 1) | ((cpu->f & FLAG_C) >> 4);
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (last_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     write_byte(cpu->mmu, HL, result);
@@ -2993,23 +2993,23 @@ uint8_t RR_mHL_0x1E(CPU* cpu){
     uint8_t first_bit;
 
     first_bit = mHL & 0x01;
-    result = (mHL >> 1) | (((cpu->F & FLAG_C) << 3));
+    result = (mHL >> 1) | (((cpu->f & FLAG_C) << 3));
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (first_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     write_byte(cpu->mmu, HL, result);
@@ -3050,19 +3050,19 @@ uint8_t SLA_mHL_0x26(CPU* cpu){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (last_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     write_byte(cpu->mmu, HL, result);
@@ -3103,19 +3103,19 @@ uint8_t SRA_mHL_0x2E(CPU* cpu){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (first_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     write_byte(cpu->mmu, HL, result);
@@ -3154,16 +3154,16 @@ uint8_t SWAP_mHL_0x36(CPU* cpu){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
-    cpu->F &= ~FLAG_C;
+    cpu->f &= ~FLAG_C;
 
     write_byte(cpu->mmu, HL, result);
 
@@ -3203,19 +3203,19 @@ uint8_t SRL_mHL_0x3E(CPU* cpu){
 
     // flags
     if (result == 0){
-        cpu->F |= FLAG_Z;
+        cpu->f |= FLAG_Z;
     } else {
-        cpu->F &= ~FLAG_Z;
+        cpu->f &= ~FLAG_Z;
     }
 
-    cpu->F &= ~FLAG_N;
+    cpu->f &= ~FLAG_N;
 
-    cpu->F &= ~FLAG_H;
+    cpu->f &= ~FLAG_H;
 
     if (first_bit == 0){
-        cpu->F &= ~FLAG_C;
+        cpu->f &= ~FLAG_C;
     } else {
-        cpu->F |= FLAG_C;
+        cpu->f |= FLAG_C;
     }
 
     write_byte(cpu->mmu, HL, result);

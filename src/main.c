@@ -108,7 +108,7 @@ int main(int argc, char* argv[]){
     printf("Shutting down...\n");
 
     if (mmu.mbc_enabled && mmu.external_ram){
-        FILE* save = fopen("save.sav", "wb");
+        FILE* save = fopen("saves/save.sav", "wb");
         if (save){
             fwrite(mmu.external_ram, 1, 0x8000, save);
             fclose(save);
