@@ -1,6 +1,6 @@
-# Game Boy Emulator
+# Gameboy Emulator
 
-A custom Game Boy emulator written in C. 
+A custom Gameboy emulator written in C. 
 
 **Note on Audio:** The APU (Audio Processing Unit) is currently not implemented, and there are no plans to implement it in the future. This emulator focuses strictly on the core CPU, memory mapping (MMU), graphics (PPU), timers, and input (Joypad).
 
@@ -8,7 +8,7 @@ A custom Game Boy emulator written in C.
 
 ## Directory Structure
 * **`src/`** - Contains all C source code and header files.
-* **`roms/`** - Directory for placing Game Boy ROMs (e.g., `Boot.gb`, `Tetris.gb`, `PokemonYellow.gb`).
+* **`roms/`** - Directory for placing Gameboy ROMs (e.g., `Boot.gb`, `Tetris.gb`, `PokemonYellow.gb`).
 * **`saves/`** - Directory where `.sav` files are automatically stored.
 
 ## Compilation
