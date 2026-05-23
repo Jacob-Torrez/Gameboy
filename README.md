@@ -9,7 +9,7 @@ A custom Game Boy emulator written in C.
 ## Directory Structure
 * **`src/`** - Contains all C source code and header files.
 * **`roms/`** - Directory for placing Game Boy ROMs (e.g., `Boot.gb`, `Tetris.gb`, `PokemonYellow.gb`).
-* **`saves/`** - Directory where dynamically generated `.sav` files are automatically stored.
+* **`saves/`** - Directory where `.sav` files are automatically stored.
 
 ## Compilation
 This project requires **SDL2** for video rendering and input handling. 
@@ -18,11 +18,13 @@ To compile the emulator, navigate to the root directory of the project and use `
 
 ```bash
 gcc src/*.c -o gameboy -lSDL2
+```
 
 ## How to Run
 To play Tetris:
 ```bash
 ./gameboy roms/Tetris.gb
+```
 
 To play Pokemon Yellow:
 ```bash
