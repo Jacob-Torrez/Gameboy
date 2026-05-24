@@ -29,6 +29,9 @@ void run_emulator(CPU* cpu){
         while (cycle_tracker < CYCLES_PER_FRAME){
             uint8_t cycles = 0;
 
+            uint8_t pending_ime = cpu->set_ime_next;
+            cpu->set_ime_next = 0;
+
             uint8_t int_status = interrupt_handler(cpu);
             if (int_status == 1){
                 cpu->halt_bug = 1;
@@ -44,9 +47,8 @@ void run_emulator(CPU* cpu){
                 cycles += cpu_step(cpu);
             }
 
-            if (cpu->set_ime_next){
+            if (pending_ime){
                 cpu->ime = 1;
-                cpu->set_ime_next = 0;
             }
 
             ppu_step(cpu->mmu->ppu, cycles);
@@ -115,13 +117,8 @@ int main(int argc, char* argv[]){
         }
     }
 
-    if (mmu.rom) free(mmu.rom);
-    if (mmu.bios) free(mmu.bios);
-    if (mmu.external_ram) free(mmu.external_ram);
-    
-    if (ppu.texture) SDL_DestroyTexture(ppu.texture);
-    if (ppu.renderer) SDL_DestroyRenderer(ppu.renderer);
-    if (ppu.window) SDL_DestroyWindow(ppu.window);
+    mmu_destroy(&mmu);
+    ppu_destroy(&ppu);
     
     SDL_Quit();
 

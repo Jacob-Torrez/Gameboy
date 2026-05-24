@@ -102,12 +102,18 @@ uint8_t ppu_init(PPU* ppu){
 }
 
 void ppu_destroy(PPU* ppu){
-    SDL_DestroyTexture(ppu->texture);
-    ppu->texture = NULL;
-    SDL_DestroyRenderer(ppu->renderer);
-    ppu->renderer = NULL;
-    SDL_DestroyWindow(ppu->window);
-    ppu->window = NULL;
+    if (ppu->texture){
+        SDL_DestroyTexture(ppu->texture);
+        ppu->texture = NULL;
+    }
+    if (ppu->renderer){
+        SDL_DestroyRenderer(ppu->renderer);
+        ppu->renderer = NULL;
+    }
+    if (ppu->window){
+        SDL_DestroyWindow(ppu->window);
+        ppu->window = NULL;
+    }
 }
 
 static void ppu_reset(PPU* ppu){

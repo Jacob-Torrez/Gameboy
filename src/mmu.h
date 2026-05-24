@@ -16,14 +16,14 @@ typedef enum {
 } interrupt_t;
 
 typedef struct MMU {
-    uint8_t* rom;
-    uint8_t* bios;
+    uint8_t* rom; // ROM buffer (Tetris.gb or PokemonYellow.gb)
+    uint8_t* bios; // BIOS buffer (Boot.gb)
 
     uint8_t* rom_bank0; // 0x0000 - 0x3FFF
     uint8_t* rom_bankN; // 0x4000 - 0x7FFF
     uint16_t rom_bank_num;
 
-    uint8_t* external_ram; 
+    uint8_t* external_ram; // RAM buffer
     uint8_t* eram_bankN; // 0xA000 - 0xBFFF
     uint8_t ram_bank_num;
 
@@ -32,8 +32,11 @@ typedef struct MMU {
     uint8_t hram[0x7F]; // 0xFF80 - 0xFFFE
 
     uint8_t bios_enabled; // If read_byte reads from BIOS or ROM
-    uint8_t mbc_enabled; // If writes control MBC
+    uint8_t mbc_enabled; // If MBC is enabled (MBC5 + RAM + BATTERY)
     uint8_t ram_enabled; // If external RAM is enabled
+
+    uint8_t sb; // 0xFF01
+    uint8_t sc; // 0xFF02
 
     uint8_t dma; // 0xFF46
     uint16_t dma_cycles; // Cycles left in DMA transfer
@@ -55,5 +58,6 @@ void write_byte(MMU* mmu, uint16_t addr, uint8_t val);
 void request_interrupt(MMU* mmu, interrupt_t interrupt);
 
 uint8_t mmu_init(MMU* mmu, const char* filename);
+void mmu_destroy(MMU* mmu);
 
 #endif

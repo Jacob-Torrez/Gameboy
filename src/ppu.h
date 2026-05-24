@@ -27,8 +27,8 @@ typedef struct PPU {
     SDL_Texture* texture;
 
     ppu_mode_t mode; // 0: HBlank, 1: VBlank, 2: OAM, 3: Draw
-    uint16_t mode_cycles;
-    uint8_t window_line_counter;
+    uint16_t mode_cycles; // Cycles run in current mode
+    uint8_t window_line_counter; // # of lines where window is rendered
 
     uint8_t lcdc; // 0xFF40
     uint8_t stat; // 0xFF41

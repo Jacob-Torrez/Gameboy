@@ -22,6 +22,8 @@ uint8_t timer_step(TIMER* timer, uint8_t cycles){
             if (timer->tima == 0xFF){
                 ret_cycles = 4;
                 timer->tima = 0;
+                timer->sys_counter += cycles;
+                break;
             } else {
                 timer->tima++;
             }

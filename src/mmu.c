@@ -43,6 +43,10 @@ uint8_t read_byte(MMU* mmu, uint16_t addr){
         return 0xFF;
     }
     else if (addr >= 0xFF00 && addr <= 0xFF7F){ // I/O Registers
+        if (addr >= 0xFF10 && addr <= 0xFF3F){ // Audio Registers
+            return 0x00;
+        }
+
         switch (addr) {
             case 0xFF00: // JOYP
                 if ((mmu->joypad->action_direction[0] & 0x20) == 0){
@@ -54,6 +58,8 @@ uint8_t read_byte(MMU* mmu, uint16_t addr){
                     return 0xF;
                 }
 
+            case 0xFF01: return 0xFF; // SB
+            case 0xFF02: return mmu->sc; // SC
             case 0xFF04: return mmu->timer->sys_counter >> 8; // DIV
             case 0xFF05: return mmu->timer->tima; // TIMA
             case 0xFF06: return mmu->timer->tma; // TMA
@@ -135,6 +141,15 @@ void write_byte(MMU* mmu, uint16_t addr, uint8_t val){
                 mmu->joypad->action_direction[1] = (mmu->joypad->action_direction[1] & 0x0F) | (val & 0xF0);
                 break;
 
+            case 0xFF01: mmu->sb = val; break; // SB
+            case 0xFF02: // SC
+                if ((val & 0x80) != 0){
+                    request_interrupt(mmu, INT_SERIAL);
+                    val &= ~0x80;
+                }
+                mmu->sc = val;
+                break;
+
             case 0xFF04: mmu->timer->sys_counter = 0; break; // DIV
             case 0xFF05: mmu->timer->tima = val; break; // TIMA
             case 0xFF06: mmu->timer->tma = val; break; // TMA
@@ -200,7 +215,7 @@ uint8_t mmu_init(MMU* mmu, const char* filename){
     mmu->rom_bankN = mmu->rom + 0x4000;
     mmu->rom_bank_num = 1;
 
-    mmu->mbc_enabled = (mmu->rom[0x0147] == 0x1B) ? 1 : 0;
+    mmu->mbc_enabled = (mmu->rom[0x0147] == 0x1B) ? 1 : 0; // Checks cartridge header for MBC config
 
     if (mmu->mbc_enabled){
         mmu->external_ram = calloc(0x8000, sizeof(uint8_t));
@@ -225,6 +240,8 @@ uint8_t mmu_init(MMU* mmu, const char* filename){
     mmu->bank = 0;
     mmu->ifl = 0;
     mmu->ie = 0;
+    mmu->sb = 0;
+    mmu->sc = 0;
 
     return 0;
 }
@@ -267,4 +284,13 @@ static uint8_t read_bios(MMU* mmu){
     fread(mmu->bios, sizeof(uint8_t), 0x100, file);
     fclose(file);
     return 0;
+}
+
+void mmu_destroy(MMU* mmu){
+    if (mmu->rom) free(mmu->rom);
+    mmu->rom = NULL;
+    if (mmu->bios) free(mmu->bios);
+    mmu->bios = NULL;
+    if (mmu->external_ram) free(mmu->external_ram);
+    mmu->external_ram = NULL;
 }

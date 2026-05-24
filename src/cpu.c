@@ -386,7 +386,8 @@ uint8_t ADC_R8(CPU* cpu, reg8_t src){
     uint8_t* src_ptr = get_r8_adr(cpu, src);
     uint16_t result;
 
-    result = *dst_ptr + *src_ptr + ((cpu->f & FLAG_C) >> 4);
+    uint8_t old_carry = (cpu->f & FLAG_C) >> 4;
+    result = *dst_ptr + *src_ptr + old_carry;
 
     // flags
     cpu->f &= ~FLAG_N;
@@ -397,7 +398,7 @@ uint8_t ADC_R8(CPU* cpu, reg8_t src){
         cpu->f &= ~FLAG_Z;
     }
 
-    if ((*dst_ptr & 0x0F) + (*src_ptr & 0x0F) + ((cpu->f & FLAG_C) >> 4) > 0x0F){
+    if ((*dst_ptr & 0x0F) + (*src_ptr & 0x0F) + old_carry > 0x0F){
         cpu->f |= FLAG_H;
     } else {
         cpu->f &= ~FLAG_H;
@@ -1350,10 +1351,11 @@ uint8_t INC_mHL_0x34(CPU* cpu){
     uint16_t HL = get_hl(cpu);
     uint8_t mHL = read_byte(cpu->mmu, HL);
 
-    write_byte(cpu->mmu, HL, mHL + 1);
+    uint8_t result = mHL + 1;
+    write_byte(cpu->mmu, HL, result);
 
     // flags
-    if (mHL + 1 == 0){
+    if (result == 0){
         cpu->f |= FLAG_Z;
     } else {
         cpu->f &= ~FLAG_Z;
@@ -1756,7 +1758,8 @@ uint8_t ADC_A_mHL_0x8E(CPU* cpu){
 
     uint16_t result;
 
-    result = *dst_ptr + mHL + ((cpu->f & FLAG_C) >> 4);
+    uint8_t old_carry = (cpu->f & FLAG_C) >> 4;
+    result = *dst_ptr + mHL + old_carry;
 
     // flags
     cpu->f &= ~FLAG_N;
@@ -1767,7 +1770,7 @@ uint8_t ADC_A_mHL_0x8E(CPU* cpu){
         cpu->f &= ~FLAG_Z;
     }
 
-    if ((*dst_ptr & 0x0F) + (mHL & 0x0F) + ((cpu->f & FLAG_C) >> 4) > 0x0F){
+    if ((*dst_ptr & 0x0F) + (mHL & 0x0F) + old_carry > 0x0F){
         cpu->f |= FLAG_H;
     } else {
         cpu->f &= ~FLAG_H;
@@ -2289,7 +2292,8 @@ uint8_t ADC_A_N8_0xCE(CPU* cpu){
 
     uint16_t result;
 
-    result = *dst_ptr + N8 + ((cpu->f & FLAG_C) >> 4);
+    uint8_t old_carry = (cpu->f & FLAG_C) >> 4;
+    result = *dst_ptr + N8 + old_carry;
 
     // flags
     cpu->f &= ~FLAG_N;
@@ -2300,7 +2304,7 @@ uint8_t ADC_A_N8_0xCE(CPU* cpu){
         cpu->f &= ~FLAG_Z;
     }
 
-    if ((*dst_ptr & 0x0F) + (N8 & 0x0F) + ((cpu->f & FLAG_C) >> 4) > 0x0F){
+    if ((*dst_ptr & 0x0F) + (N8 & 0x0F) + old_carry > 0x0F){
         cpu->f |= FLAG_H;
     } else {
         cpu->f &= ~FLAG_H;

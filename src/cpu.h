@@ -23,12 +23,12 @@ typedef struct CPU {
     uint8_t a, b, c, d, e, h, l, f;
     uint16_t sp, pc;
 
-    uint8_t ime;
-    uint8_t halted;
-    uint8_t stopped;
+    uint8_t ime; // Interrupt Master Enable
+    uint8_t halted; // If CPU is halted
+    uint8_t stopped; // If CPU is stopped
 
-    uint8_t set_ime_next;
-    uint8_t halt_bug;
+    uint8_t set_ime_next; // Indicates to set ime on next step
+    uint8_t halt_bug; // Indicates a halt bug needs to be handled
 
     MMU* mmu;
 } CPU;
