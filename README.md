@@ -1,6 +1,9 @@
 # Gameboy Emulator
 
-A custom Gameboy emulator written in C. 
+A Gameboy (DMG) emulator written in C with SDL2, implementing the CPU, MMU, PPU, timers, interrupts, and joypad input.
+
+<img width="1278" height="687" alt="Image" src="https://github.com/user-attachments/assets/072d92cb-c935-4ead-9d4a-9293fd809394" />
+
 
 **Note on Audio:** The APU (Audio Processing Unit) is currently not implemented, and there are no plans to implement it in the future. This emulator focuses strictly on the core CPU, memory mapping (MMU), graphics (PPU), timers, and input (Joypad).
 
